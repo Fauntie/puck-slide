@@ -22,10 +22,12 @@ public class BoardController : MonoBehaviour
     
     [SerializeField]
     private RowData[] m_Grid;
-    
+
     // The piece we are currently dragging, if any
     private Piece m_SelectedPiece;
     private Vector3 m_Offset;
+    private Tile m_OriginalTile;
+    private bool m_IsWhiteTurn = true;
 
     private void OnEnable()
     {
@@ -129,14 +131,15 @@ public class BoardController : MonoBehaviour
                 }
             }
 
-            // If we found a piece, "pick it up"
-            if (topmostPiece != null)
+            // If we found a piece, check turn and "pick it up"
+            if (topmostPiece != null && topmostPiece.IsWhite() == m_IsWhiteTurn)
             {
                 m_SelectedPiece = topmostPiece;
-        
-                if (m_SelectedPiece.GetCurrentTile() != null)
+                m_OriginalTile = m_SelectedPiece.GetCurrentTile();
+
+                if (m_OriginalTile != null)
                 {
-                    m_SelectedPiece.GetCurrentTile().ClearTile();
+                    m_OriginalTile.ClearTile();
                 }
             }
         }
@@ -171,53 +174,132 @@ public class BoardController : MonoBehaviour
                 }
             }
 
-            // If we dropped on a tile, place the piece there
-            if (tileBelow != null)
+            bool moveMade = false;
+            if (tileBelow != null && IsLegalMove(m_SelectedPiece, m_OriginalTile, tileBelow))
             {
-                // If there's already a piece, "capture" it (destroy it)
                 if (tileBelow.HasPiece())
                 {
-                    // Fill out UI
                     Piece piece = tileBelow.GetCurrentPiece();
                     bool isWhitePiece = piece.IsWhite();
                     CapturedPieceUi capUi =
                         Instantiate(m_PiecePrefabUI,
                                 isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
                             .GetComponent<CapturedPieceUi>();
-                    
                     capUi.SetupCapturedUiPiece(piece.GetChessPiece());
-                    
-                    Destroy(tileBelow.GetCurrentPiece().gameObject);
+
+                    Destroy(piece.gameObject);
                     tileBelow.ClearTile();
                 }
 
-                // Place the selected piece on the new tile
                 tileBelow.SetPiece(m_SelectedPiece);
                 m_SelectedPiece.SetTile(tileBelow);
                 m_SelectedPiece.transform.position = tileBelow.transform.position;
-                
-                // Promotion check
-                // If the piece is a Pawn AND it's on the top/bottom row
+
                 if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
                 {
-                    // Show the promotion UI
                     PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
                 }
 
+                m_IsWhiteTurn = !m_IsWhiteTurn;
                 BoardFlipper.Flip();
+                moveMade = true;
             }
-            else
+
+            if (!moveMade && m_OriginalTile != null)
             {
-                // Otherwise, revert to original tile if it existed
-                Tile oldTile = m_SelectedPiece.GetCurrentTile();
-                if (oldTile != null)
-                {
-                    m_SelectedPiece.transform.position = oldTile.transform.position;
-                    oldTile.SetPiece(m_SelectedPiece);
-                }
+                m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
+                m_OriginalTile.SetPiece(m_SelectedPiece);
             }
 
             m_SelectedPiece = null;
         }
+    }
+
+    private Vector2Int GetCoords(Tile tile)
+    {
+        int y = tile.GetRow();
+        Tile[] row = m_Grid[y].m_Row;
+        for (int x = 0; x < row.Length; x++)
+        {
+            if (row[x] == tile)
+            {
+                return new Vector2Int(x, y);
+            }
+        }
+        return new Vector2Int(-1, -1);
+    }
+
+    private bool IsPathClear(Vector2Int start, Vector2Int end)
+    {
+        int stepX = Math.Sign(end.x - start.x);
+        int stepY = Math.Sign(end.y - start.y);
+        int x = start.x + stepX;
+        int y = start.y + stepY;
+        while (x != end.x || y != end.y)
+        {
+            if (m_Grid[y].m_Row[x].HasPiece())
+            {
+                return false;
+            }
+            x += stepX;
+            y += stepY;
+        }
+        return true;
+    }
+
+    private bool IsLegalMove(Piece piece, Tile from, Tile to)
+    {
+        if (from == null || to == null)
+            return false;
+
+        if (to.HasPiece() && to.GetCurrentPiece().IsWhite() == piece.IsWhite())
+            return false;
+
+        Vector2Int start = GetCoords(from);
+        Vector2Int end = GetCoords(to);
+        int dx = end.x - start.x;
+        int dy = end.y - start.y;
+        bool isWhite = piece.IsWhite();
+
+        switch (piece.GetChessPiece())
+        {
+            case ChessPiece.W_Pawn:
+            case ChessPiece.B_Pawn:
+                int dir = isWhite ? 1 : -1;
+                int startRow = isWhite ? 1 : 6;
+                if (Math.Abs(dx) == 1 && dy == dir && to.HasPiece() && to.GetCurrentPiece().IsWhite() != isWhite)
+                    return true;
+                if (dx == 0 && !to.HasPiece())
+                {
+                    if (dy == dir)
+                        return true;
+                    if (dy == 2 * dir && start.y == startRow && IsPathClear(start, end))
+                        return true;
+                }
+                return false;
+            case ChessPiece.W_Rook:
+            case ChessPiece.B_Rook:
+                if (dx == 0 || dy == 0)
+                    return IsPathClear(start, end);
+                return false;
+            case ChessPiece.W_Bishop:
+            case ChessPiece.B_Bishop:
+                if (Math.Abs(dx) == Math.Abs(dy))
+                    return IsPathClear(start, end);
+                return false;
+            case ChessPiece.W_Queen:
+            case ChessPiece.B_Queen:
+                if (dx == 0 || dy == 0 || Math.Abs(dx) == Math.Abs(dy))
+                    return IsPathClear(start, end);
+                return false;
+            case ChessPiece.W_Knight:
+            case ChessPiece.B_Knight:
+                return (Math.Abs(dx) == 1 && Math.Abs(dy) == 2) || (Math.Abs(dx) == 2 && Math.Abs(dy) == 1);
+            case ChessPiece.W_King:
+            case ChessPiece.B_King:
+                return Math.Max(Math.Abs(dx), Math.Abs(dy)) == 1;
+        }
+
+        return false;
     }
 }
