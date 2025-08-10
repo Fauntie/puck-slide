@@ -8,7 +8,9 @@ public static class BoardFlipper
     private static int s_GridSize;
     private static float s_TileSize;
     private static Vector3 s_BoardCenter;
-    private static Vector3 s_FlipOffset = new Vector3(0f, -1f, 0f);
+
+    private static Vector3 s_FlipOffset = Vector3.zero;
+
 
     public static void SetBoard(Transform board, int gridSize, float tileSize)
     {
