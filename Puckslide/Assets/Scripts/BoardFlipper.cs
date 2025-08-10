@@ -17,7 +17,7 @@ public static class BoardFlipper
         s_GridSize = gridSize;
         s_TileSize = tileSize;
 
-        s_BoardCenter = board.position + new Vector3((gridSize - 1) * tileSize / 2f, (gridSize - 1) * tileSize / 2f, 0f);
+        s_BoardCenter = board.position;
     }
 
     private static Vector3 GetBoardCenter()
@@ -38,15 +38,14 @@ public static class BoardFlipper
         Vector3 boardCenter = GetBoardCenter();
         s_BoardTransform.RotateAround(boardCenter, Vector3.forward, 180f);
 
-
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
-
-                puck.transform.RotateAround(boardCenter, Vector3.forward, 180f);
-
+                Vector3 offset = puck.transform.position - boardCenter;
+                puck.transform.position = boardCenter - offset;
             }
+
             puck.transform.rotation = Quaternion.identity;
 
             Rigidbody2D rb = puck.GetComponent<Rigidbody2D>();
@@ -61,10 +60,10 @@ public static class BoardFlipper
         {
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
-
-                piece.transform.RotateAround(boardCenter, Vector3.forward, 180f);
-
+                Vector3 offset = piece.transform.position - boardCenter;
+                piece.transform.position = boardCenter - offset;
             }
+
             piece.transform.rotation = Quaternion.identity;
 
             Rigidbody2D rb = piece.GetComponent<Rigidbody2D>();

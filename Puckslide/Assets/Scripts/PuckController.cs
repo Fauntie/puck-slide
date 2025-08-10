@@ -166,24 +166,13 @@ public class PuckController : MonoBehaviour
         s_LastMoveWasWhite = IsWhitePiece;
         m_IsSelected = false;
 
-        StartCoroutine(WaitForAllPucksStopped());
+        StartCoroutine(WaitForPuckStopped());
     }
 
-    private IEnumerator WaitForAllPucksStopped()
+    private IEnumerator WaitForPuckStopped()
     {
-        // Allow physics to update before checking velocities
         yield return new WaitForFixedUpdate();
-        yield return new WaitUntil(() =>
-        {
-            foreach (PuckController puck in FindObjectsOfType<PuckController>())
-            {
-                if (!puck.m_Rigidbody.IsSleeping())
-                {
-                    return false;
-                }
-            }
-            return true;
-        });
+        yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
         BoardFlipper.Flip();
     }
 
