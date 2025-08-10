@@ -192,7 +192,7 @@ public class PuckController : MonoBehaviour
 
     public static void ResetTurnOrder()
     {
-        s_LastMoveWasWhite = null;
+        s_LastMoveWasWhite = false; // Start with white's turn
     }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)

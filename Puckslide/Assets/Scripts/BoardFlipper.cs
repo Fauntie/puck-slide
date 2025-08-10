@@ -48,6 +48,13 @@ public static class BoardFlipper
 
             }
             puck.transform.rotation = Quaternion.identity;
+
+            Rigidbody2D rb = puck.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.velocity = Vector2.zero;
+                rb.angularVelocity = 0f;
+            }
         }
 
         foreach (Piece piece in Object.FindObjectsOfType<Piece>())
@@ -59,6 +66,13 @@ public static class BoardFlipper
 
             }
             piece.transform.rotation = Quaternion.identity;
+
+            Rigidbody2D rb = piece.GetComponent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.velocity = Vector2.zero;
+                rb.angularVelocity = 0f;
+            }
         }
     }
 }
