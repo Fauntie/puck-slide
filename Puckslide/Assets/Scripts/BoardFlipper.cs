@@ -47,7 +47,11 @@ public static class BoardFlipper
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
                 Vector3 offset = puck.transform.position - boardCenter;
-                puck.transform.position = boardCenter - offset;
+                // Mirror the puck across the board center on the X/Y plane but keep its original Z
+                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
+                    boardCenter.y - offset.y,
+                    puck.transform.position.z);
+                puck.transform.position = newPos;
             }
 
             puck.transform.rotation = Quaternion.identity;
@@ -65,7 +69,11 @@ public static class BoardFlipper
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
                 Vector3 offset = piece.transform.position - boardCenter;
-                piece.transform.position = boardCenter - offset;
+                // Mirror the piece across the board center on the X/Y plane but keep its original Z
+                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
+                    boardCenter.y - offset.y,
+                    piece.transform.position.z);
+                piece.transform.position = newPos;
             }
 
             piece.transform.rotation = Quaternion.identity;
