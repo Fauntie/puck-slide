@@ -17,7 +17,7 @@ public static class BoardFlipper
         s_GridSize = gridSize;
         s_TileSize = tileSize;
 
-        s_BoardCenter = board.position + new Vector3((gridSize - 1) * tileSize / 2f, (gridSize - 1) * tileSize / 2f, 0f);
+        s_BoardCenter = board.position;
     }
 
     private static Vector3 GetBoardCenter()

@@ -166,6 +166,13 @@ public class PuckController : MonoBehaviour
         s_LastMoveWasWhite = IsWhitePiece;
         m_IsSelected = false;
 
+        StartCoroutine(WaitForPuckStopped());
+    }
+
+    private IEnumerator WaitForPuckStopped()
+    {
+        yield return new WaitForFixedUpdate();
+        yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
         BoardFlipper.Flip();
     }
 
