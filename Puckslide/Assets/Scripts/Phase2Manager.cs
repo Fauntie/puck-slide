@@ -12,8 +12,14 @@ public class Phase2Manager : MonoBehaviour
     [SerializeField]
     private float m_TileSize = 0.383f;
 
+    /// <summary>
+    /// Indicates whether Phase 2 gameplay is currently active.
+    /// </summary>
+    public static bool IsPhase2Active { get; private set; }
+
     private void OnEnable()
     {
+        IsPhase2Active = true;
         // Clear any lingering pucks from the board. Pieces will be spawned
         // from the last recorded layout by the BoardController, so avoid
         // destroying them here.
@@ -26,6 +32,11 @@ public class Phase2Manager : MonoBehaviour
             BoardFlipper.SetBoard(m_BoardTransform, m_GridSize, m_TileSize);
             BoardFlipper.SetFlipOffset(new Vector3(0f, -1f, 0f));
         }
+    }
+
+    private void OnDisable()
+    {
+        IsPhase2Active = false;
     }
 
     public void EndGame()

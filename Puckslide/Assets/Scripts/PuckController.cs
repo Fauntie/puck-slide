@@ -173,7 +173,14 @@ public class PuckController : MonoBehaviour
     {
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
-        BoardFlipper.Flip();
+        if (Phase2Manager.IsPhase2Active)
+        {
+            BoardFlipper.FlipCamera();
+        }
+        else
+        {
+            BoardFlipper.Flip();
+        }
     }
 
     public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck
