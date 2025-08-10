@@ -23,13 +23,23 @@ public static class BoardFlipper
             return Vector3.zero;
         }
 
-        // In Phase 2 the board's pivot isn't guaranteed to sit at the
-        // bottom‑left corner of the grid.  Computing the centre assuming a
-        // particular pivot causes the pieces to be mirrored to the wrong
-        // location when the board is flipped.  Instead we calculate the
-        // bounds of all renderers on the board and use the bounds centre as
-        // the rotation point.  This works regardless of the board's pivot or
-        // orientation.
+        // The board used in Phase 2 is built from UI elements, so it doesn't
+        // necessarily have any Renderer components and its pivot might not sit
+        // at the bottom‑left corner.  To mirror pieces correctly for both
+        // phases we try a few strategies to find the actual centre of the
+        // board:
+
+        // 1) If the transform is a RectTransform (UI) we can use its world
+        //    corners to determine the centre regardless of pivot.
+        RectTransform rect = s_BoardTransform as RectTransform;
+        if (rect != null)
+        {
+            Vector3[] corners = new Vector3[4];
+            rect.GetWorldCorners(corners);
+            return (corners[0] + corners[2]) * 0.5f; // bottom‑left + top‑right
+        }
+
+        // 2) Otherwise fall back to the bounds of any renderers on the board.
         Renderer[] renderers = s_BoardTransform.GetComponentsInChildren<Renderer>();
         if (renderers.Length > 0)
         {
@@ -41,7 +51,9 @@ public static class BoardFlipper
             return bounds.center;
         }
 
-        // Fallback to the old calculation if no renderers are present.
+        // 3) As a last resort, assume the board pivot is at the bottom‑left
+        //    and use the grid dimensions to compute the centre (Phase 1
+        //    behaviour).
         float halfSize = (s_GridSize - 1) * s_TileSize * 0.5f;
         return s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
     }
