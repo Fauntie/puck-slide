@@ -31,13 +31,34 @@ public static class BoardFlipper
         // the rotation point.  This works regardless of the board's pivot or
         // orientation.
         Renderer[] renderers = s_BoardTransform.GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
+        Bounds bounds = new Bounds();
+        bool boundsInitialized = false;
+
+        foreach (Renderer r in renderers)
         {
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
+            // Ignore renderers that belong to pieces or pucks. Including them
+            // skews the bounds toward whichever side of the board currently
+            // has more pieces, causing the board to shift in view when
+            // rotated.
+            if (r.GetComponentInParent<PuckController>() != null ||
+                r.GetComponentInParent<Piece>() != null)
             {
-                bounds.Encapsulate(renderers[i].bounds);
+                continue;
             }
+
+            if (!boundsInitialized)
+            {
+                bounds = r.bounds;
+                boundsInitialized = true;
+            }
+            else
+            {
+                bounds.Encapsulate(r.bounds);
+            }
+        }
+
+        if (boundsInitialized)
+        {
             return bounds.center;
         }
 
@@ -55,18 +76,28 @@ public static class BoardFlipper
 
         s_IsFlipped = !s_IsFlipped;
 
-        Vector3 boardCenter = GetBoardCenter();
-        s_BoardTransform.RotateAround(boardCenter, Vector3.forward, 180f);
+        // Rotate the board around its current centre.
+        Vector3 boardCenterBefore = GetBoardCenter();
+        s_BoardTransform.RotateAround(boardCenterBefore, Vector3.forward, 180f);
+
+        // After rotation the board's bounds can shift if it has asymmetric
+        // renderers (scoreboards, decorations, etc.).  Re‑center the board by
+        // translating it so the centre matches its pre‑rotation position.
+        Vector3 boardCenterAfter = GetBoardCenter();
+        Vector3 boardOffset = boardCenterBefore - boardCenterAfter;
+        s_BoardTransform.position += boardOffset;
 
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
-                Vector3 offset = puck.transform.position - boardCenter;
-                // Mirror the puck across the board center on the X/Y plane but keep its original Z
-                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
-                    boardCenter.y - offset.y,
+                Vector3 offset = puck.transform.position - boardCenterBefore;
+                // Mirror the puck across the board centre on the X/Y plane but keep its original Z.
+                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
+                    boardCenterBefore.y - offset.y,
                     puck.transform.position.z);
+                // Apply the board translation so independent pucks stay aligned.
+                newPos += boardOffset;
                 puck.transform.position = newPos;
             }
 
@@ -84,11 +115,13 @@ public static class BoardFlipper
         {
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
-                Vector3 offset = piece.transform.position - boardCenter;
-                // Mirror the piece across the board center on the X/Y plane but keep its original Z
-                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
-                    boardCenter.y - offset.y,
+                Vector3 offset = piece.transform.position - boardCenterBefore;
+                // Mirror the piece across the board centre on the X/Y plane but keep its original Z.
+                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
+                    boardCenterBefore.y - offset.y,
                     piece.transform.position.z);
+                // Apply the board translation so independent pieces stay aligned.
+                newPos += boardOffset;
                 piece.transform.position = newPos;
             }
 
