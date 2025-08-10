@@ -24,6 +24,7 @@ public class Phase2Manager : MonoBehaviour
         if (m_BoardTransform != null)
         {
             BoardFlipper.SetBoard(m_BoardTransform, m_GridSize, m_TileSize);
+            BoardFlipper.SetFlipOffset(new Vector3(0f, -1f, 0f));
         }
     }
 

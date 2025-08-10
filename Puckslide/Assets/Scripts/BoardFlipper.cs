@@ -8,6 +8,7 @@ public static class BoardFlipper
     private static int s_GridSize;
     private static float s_TileSize;
     private static Vector3 s_BoardCenter;
+    private static Vector3 s_FlipOffset = Vector3.zero;
 
     public static void SetBoard(Transform board, int gridSize, float tileSize)
     {
@@ -17,6 +18,11 @@ public static class BoardFlipper
         s_TileSize = tileSize;
 
         RecalculateBoardCenter();
+    }
+
+    public static void SetFlipOffset(Vector3 offset)
+    {
+        s_FlipOffset = offset;
     }
 
     private static void RecalculateBoardCenter()
@@ -106,7 +112,8 @@ public static class BoardFlipper
         RecalculateBoardCenter();
         Vector3 boardCenterAfter = GetBoardCenter();
         Vector3 boardOffset = boardCenterBefore - boardCenterAfter;
-        s_BoardTransform.position += boardOffset;
+        Vector3 totalOffset = boardOffset + (s_IsFlipped ? s_FlipOffset : -s_FlipOffset);
+        s_BoardTransform.position += totalOffset;
         // Update the cached centre again now that the board has been moved.
         RecalculateBoardCenter();
 
@@ -121,7 +128,7 @@ public static class BoardFlipper
 
                     puck.transform.position.z);
                 // Apply the board translation so independent pucks stay aligned.
-                newPos += boardOffset;
+                newPos += totalOffset;
                 puck.transform.position = newPos;
             }
 
@@ -146,7 +153,7 @@ public static class BoardFlipper
 
                     piece.transform.position.z);
                 // Apply the board translation so independent pieces stay aligned.
-                newPos += boardOffset;
+                newPos += totalOffset;
                 piece.transform.position = newPos;
             }
 
@@ -159,6 +166,9 @@ public static class BoardFlipper
                 rb.angularVelocity = 0f;
             }
         }
+
+        // Update the cached centre again after moving the board and pieces.
+        RecalculateBoardCenter();
     }
 
     public static void FlipCamera()
