@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 public class PuckController : MonoBehaviour
@@ -141,6 +142,24 @@ public class PuckController : MonoBehaviour
         {
             m_LineRenderer.enabled = false;
         }
+
+        StartCoroutine(WaitForAllPucksStopped());
+    }
+
+    private IEnumerator WaitForAllPucksStopped()
+    {
+        yield return new WaitUntil(() =>
+        {
+            foreach (PuckController puck in FindObjectsOfType<PuckController>())
+            {
+                if (puck.m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+        BoardFlipper.Flip();
     }
     
     public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck
