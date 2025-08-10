@@ -23,13 +23,27 @@ public static class BoardFlipper
             return Vector3.zero;
         }
 
-        // The board's local origin is at the bottom-left corner of the grid.
-        // We convert the local centre point of the grid into world space every
-        // time we flip so the calculation remains correct even after the
-        // transform has moved or rotated.
+        // In Phase 2 the board's pivot isn't guaranteed to sit at the
+        // bottom‑left corner of the grid.  Computing the centre assuming a
+        // particular pivot causes the pieces to be mirrored to the wrong
+        // location when the board is flipped.  Instead we calculate the
+        // bounds of all renderers on the board and use the bounds centre as
+        // the rotation point.  This works regardless of the board's pivot or
+        // orientation.
+        Renderer[] renderers = s_BoardTransform.GetComponentsInChildren<Renderer>();
+        if (renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            return bounds.center;
+        }
+
+        // Fallback to the old calculation if no renderers are present.
         float halfSize = (s_GridSize - 1) * s_TileSize * 0.5f;
         return s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
-
     }
 
     public static void Flip()
