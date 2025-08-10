@@ -203,6 +203,8 @@ public class BoardController : MonoBehaviour
                     // Show the promotion UI
                     PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
                 }
+
+                BoardFlipper.Flip();
             }
             else
             {
