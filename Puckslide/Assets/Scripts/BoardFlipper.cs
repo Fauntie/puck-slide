@@ -7,6 +7,7 @@ public static class BoardFlipper
 
     private static int s_GridSize;
     private static float s_TileSize;
+    private static Vector3 s_BoardCenter;
 
     public static void SetBoard(Transform board, int gridSize, float tileSize)
     {
@@ -14,36 +15,73 @@ public static class BoardFlipper
 
         s_GridSize = gridSize;
         s_TileSize = tileSize;
+
+        RecalculateBoardCenter();
+    }
+
+    private static void RecalculateBoardCenter()
+    {
+        if (s_BoardTransform == null)
+        {
+            s_BoardCenter = Vector3.zero;
+            return;
+        }
+
+        // Prefer tile positions to avoid decorations such as scoreboards
+        // skewing the board centre.
+        Tile[] tiles = s_BoardTransform.GetComponentsInChildren<Tile>();
+        if (tiles.Length > 0)
+        {
+            Vector3 min = tiles[0].transform.position;
+            Vector3 max = min;
+            foreach (Tile tile in tiles)
+            {
+                Vector3 p = tile.transform.position;
+                min = Vector3.Min(min, p);
+                max = Vector3.Max(max, p);
+            }
+
+            s_BoardCenter = (min + max) * 0.5f;
+            return;
+        }
+
+        // Fallback to renderer bounds while ignoring pieces and pucks.
+        Renderer[] renderers = s_BoardTransform.GetComponentsInChildren<Renderer>();
+        Bounds bounds = new Bounds();
+        bool boundsInitialized = false;
+
+        foreach (Renderer r in renderers)
+        {
+            if (r.GetComponentInParent<PuckController>() != null ||
+                r.GetComponentInParent<Piece>() != null)
+            {
+                continue;
+            }
+
+            if (!boundsInitialized)
+            {
+                bounds = r.bounds;
+                boundsInitialized = true;
+            }
+            else
+            {
+                bounds.Encapsulate(r.bounds);
+            }
+        }
+
+        if (boundsInitialized)
+        {
+            s_BoardCenter = bounds.center;
+            return;
+        }
+
+        float halfSize = (s_GridSize - 1) * s_TileSize * 0.5f;
+        s_BoardCenter = s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
     }
 
     private static Vector3 GetBoardCenter()
     {
-        if (s_BoardTransform == null)
-        {
-            return Vector3.zero;
-        }
-
-        // In Phase 2 the board's pivot isn't guaranteed to sit at the
-        // bottom‑left corner of the grid.  Computing the centre assuming a
-        // particular pivot causes the pieces to be mirrored to the wrong
-        // location when the board is flipped.  Instead we calculate the
-        // bounds of all renderers on the board and use the bounds centre as
-        // the rotation point.  This works regardless of the board's pivot or
-        // orientation.
-        Renderer[] renderers = s_BoardTransform.GetComponentsInChildren<Renderer>();
-        if (renderers.Length > 0)
-        {
-            Bounds bounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                bounds.Encapsulate(renderers[i].bounds);
-            }
-            return bounds.center;
-        }
-
-        // Fallback to the old calculation if no renderers are present.
-        float halfSize = (s_GridSize - 1) * s_TileSize * 0.5f;
-        return s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
+        return s_BoardCenter;
     }
 
     public static void Flip()
@@ -63,7 +101,6 @@ public static class BoardFlipper
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
                 Vector3 offset = puck.transform.position - boardCenter;
-                // Mirror the puck across the board center on the X/Y plane but keep its original Z
                 Vector3 newPos = new Vector3(boardCenter.x - offset.x,
                     boardCenter.y - offset.y,
                     puck.transform.position.z);
@@ -85,7 +122,6 @@ public static class BoardFlipper
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
                 Vector3 offset = piece.transform.position - boardCenter;
-                // Mirror the piece across the board center on the X/Y plane but keep its original Z
                 Vector3 newPos = new Vector3(boardCenter.x - offset.x,
                     boardCenter.y - offset.y,
                     piece.transform.position.z);
