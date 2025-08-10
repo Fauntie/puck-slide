@@ -95,16 +95,20 @@ public static class BoardFlipper
 
         s_IsFlipped = !s_IsFlipped;
 
-        // Rotate the board around its current centre.
+        // Ensure our cached centre is up to date before rotating.
+        RecalculateBoardCenter();
         Vector3 boardCenterBefore = GetBoardCenter();
         s_BoardTransform.RotateAround(boardCenterBefore, Vector3.forward, 180f);
 
         // After rotation the board's bounds can shift if it has asymmetric
         // renderers (scoreboards, decorations, etc.).  Re‑center the board by
         // translating it so the centre matches its pre‑rotation position.
+        RecalculateBoardCenter();
         Vector3 boardCenterAfter = GetBoardCenter();
         Vector3 boardOffset = boardCenterBefore - boardCenterAfter;
         s_BoardTransform.position += boardOffset;
+        // Update the cached centre again now that the board has been moved.
+        RecalculateBoardCenter();
 
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
@@ -166,6 +170,8 @@ public static class BoardFlipper
 
         s_IsFlipped = !s_IsFlipped;
 
+        // Keep camera rotation centred on the actual board centre.
+        RecalculateBoardCenter();
         Vector3 boardCenter = GetBoardCenter();
         Camera cam = Camera.main;
         if (cam != null)
