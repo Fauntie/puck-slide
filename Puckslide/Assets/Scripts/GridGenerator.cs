@@ -7,6 +7,11 @@ public class GridGenerator : MonoBehaviour
     [SerializeField] private int m_GridSize = 8;
     [SerializeField] private float m_TileSize = 0.383f;
 
+    private void Awake()
+    {
+        BoardFlipper.SetBoard(transform, m_GridSize, m_TileSize);
+    }
+
     private void Start()
     {
         GenerateGrid();

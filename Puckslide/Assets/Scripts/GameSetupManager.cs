@@ -48,7 +48,8 @@ public class GameSetupManager : MonoBehaviour
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.Invoke(true);
-        
+        PuckController.ResetTurnOrder();
+
         m_PieceSetup = new PieceSetupData[]
         {
             new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=0, BlackCount=0, Sticky=false },

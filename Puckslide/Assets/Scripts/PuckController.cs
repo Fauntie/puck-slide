@@ -19,12 +19,15 @@ public class PuckController : MonoBehaviour
     private Camera m_Camera;
 
     private bool m_IsSticky;
-    
+
     private const float STOP_THRESHOLD = 0.05f;
+    private static bool? s_LastMoveWasWhite = null;
+    private bool m_IsSelected;
 
     private void Awake()
     {
         m_Camera = Camera.main;
+        m_Rigidbody.freezeRotation = true;
     }
 
     private void OnEnable()
@@ -97,11 +100,18 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseDown()
     {
+        if (s_LastMoveWasWhite != null && IsWhitePiece == s_LastMoveWasWhite.Value)
+        {
+            m_IsSelected = false;
+            return;
+        }
+
+        m_IsSelected = true;
         if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Static)
         {
             m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         }
-        
+
         m_DragStartPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         
         if (m_LineRenderer != null)
@@ -116,10 +126,15 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseDrag()
     {
+        if (!m_IsSelected)
+        {
+            return;
+        }
+
         if (m_LineRenderer != null && m_LineRenderer.enabled)
         {
             Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
-            dragPos.z = 0; 
+            dragPos.z = 0;
 
             Vector3 puckCenter = transform.position;
             puckCenter.z = 0;
@@ -131,6 +146,11 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseUp()
     {
+        if (!m_IsSelected)
+        {
+            return;
+        }
+
         Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
 
@@ -142,6 +162,9 @@ public class PuckController : MonoBehaviour
         {
             m_LineRenderer.enabled = false;
         }
+
+        s_LastMoveWasWhite = IsWhitePiece;
+        m_IsSelected = false;
 
         StartCoroutine(WaitForAllPucksStopped());
     }
@@ -161,9 +184,16 @@ public class PuckController : MonoBehaviour
         });
         BoardFlipper.Flip();
     }
-    
+
     public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck
     public ChessPiece ChessPiece { get; private set; }
+
+    public bool IsWhitePiece => (int)ChessPiece >= 6;
+
+    public static void ResetTurnOrder()
+    {
+        s_LastMoveWasWhite = null;
+    }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
     {
