@@ -83,7 +83,7 @@ public class BoardController : MonoBehaviour
                 }
 
                 // 2) Instantiate the piece prefab at the tile's position
-                GameObject pieceObj = Instantiate(m_PiecePrefab, tile.transform.position, Quaternion.identity);
+                GameObject pieceObj = Instantiate(m_PiecePrefab, tile.transform.position, Quaternion.identity, tile.transform);
 
                 // 3) Get the piece script and call SetupPiece
                 Piece pieceScript = pieceObj.GetComponent<Piece>();
@@ -92,6 +92,7 @@ public class BoardController : MonoBehaviour
                     pieceScript.SetupPiece(pieceType);
                     tile.SetPiece(pieceScript);
                     pieceScript.SetTile(tile);
+                    pieceScript.transform.SetParent(tile.transform);
                 }
                 else
                 {
@@ -140,6 +141,7 @@ public class BoardController : MonoBehaviour
 
                 if (m_OriginalTile != null)
                 {
+                    m_SelectedPiece.transform.SetParent(null);
                     m_OriginalTile.ClearTile();
                 }
             }
@@ -195,6 +197,7 @@ public class BoardController : MonoBehaviour
                 tileBelow.SetPiece(m_SelectedPiece);
                 m_SelectedPiece.SetTile(tileBelow);
                 m_SelectedPiece.transform.position = tileBelow.transform.position;
+                m_SelectedPiece.transform.SetParent(tileBelow.transform);
 
                 if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
                 {
@@ -210,6 +213,8 @@ public class BoardController : MonoBehaviour
             {
                 m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
                 m_OriginalTile.SetPiece(m_SelectedPiece);
+                m_SelectedPiece.SetTile(m_OriginalTile);
+                m_SelectedPiece.transform.SetParent(m_OriginalTile.transform);
             }
 
             m_SelectedPiece = null;
