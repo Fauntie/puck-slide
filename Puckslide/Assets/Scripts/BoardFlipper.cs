@@ -52,6 +52,7 @@ public static class BoardFlipper
 
         foreach (Renderer r in renderers)
         {
+
             if (r.GetComponentInParent<PuckController>() != null ||
                 r.GetComponentInParent<Piece>() != null)
             {
@@ -67,6 +68,7 @@ public static class BoardFlipper
             {
                 bounds.Encapsulate(r.bounds);
             }
+
         }
 
         if (boundsInitialized)
@@ -93,17 +95,29 @@ public static class BoardFlipper
 
         s_IsFlipped = !s_IsFlipped;
 
-        Vector3 boardCenter = GetBoardCenter();
-        s_BoardTransform.RotateAround(boardCenter, Vector3.forward, 180f);
+        // Rotate the board around its current centre.
+        Vector3 boardCenterBefore = GetBoardCenter();
+        s_BoardTransform.RotateAround(boardCenterBefore, Vector3.forward, 180f);
+
+        // After rotation the board's bounds can shift if it has asymmetric
+        // renderers (scoreboards, decorations, etc.).  Re‑center the board by
+        // translating it so the centre matches its pre‑rotation position.
+        Vector3 boardCenterAfter = GetBoardCenter();
+        Vector3 boardOffset = boardCenterBefore - boardCenterAfter;
+        s_BoardTransform.position += boardOffset;
 
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
+
                 Vector3 offset = puck.transform.position - boardCenter;
                 Vector3 newPos = new Vector3(boardCenter.x - offset.x,
                     boardCenter.y - offset.y,
+
                     puck.transform.position.z);
+                // Apply the board translation so independent pucks stay aligned.
+                newPos += boardOffset;
                 puck.transform.position = newPos;
             }
 
@@ -121,10 +135,14 @@ public static class BoardFlipper
         {
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
+
                 Vector3 offset = piece.transform.position - boardCenter;
                 Vector3 newPos = new Vector3(boardCenter.x - offset.x,
                     boardCenter.y - offset.y,
+
                     piece.transform.position.z);
+                // Apply the board translation so independent pieces stay aligned.
+                newPos += boardOffset;
                 piece.transform.position = newPos;
             }
 
