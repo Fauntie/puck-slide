@@ -171,11 +171,13 @@ public class PuckController : MonoBehaviour
 
     private IEnumerator WaitForAllPucksStopped()
     {
+        // Allow physics to update before checking velocities
+        yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() =>
         {
             foreach (PuckController puck in FindObjectsOfType<PuckController>())
             {
-                if (puck.m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+                if (!puck.m_Rigidbody.IsSleeping())
                 {
                     return false;
                 }
