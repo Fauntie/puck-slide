@@ -52,7 +52,11 @@ public class GridManager : MonoBehaviour
 
             if (puck.CurrentGridPosition != new Vector2Int(-1, -1))
             {
-                m_PieceLayout.Add(puck.CurrentGridPosition, puck.ChessPiece);
+                if (m_PieceLayout.ContainsKey(puck.CurrentGridPosition))
+                {
+                    Debug.LogWarning($"Duplicate piece at {puck.CurrentGridPosition} replaced.");
+                }
+                m_PieceLayout[puck.CurrentGridPosition] = puck.ChessPiece;
             }
         }
         

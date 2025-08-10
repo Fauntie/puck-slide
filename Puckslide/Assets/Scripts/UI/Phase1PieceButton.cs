@@ -36,8 +36,9 @@ public class Phase1PieceButton : MonoBehaviour
     
     private void OnDisable()
     {
-        EventsManager.OnPieceSetupData.AddListener(OnPieceSetup, true);
+        EventsManager.OnPieceSetupData.RemoveListener(OnPieceSetup);
         m_Button.onClick.RemoveListener(OnButtonPress);
+        m_PieceCount = 0;
         m_PieceCountText.text = "X 0";
     }
 

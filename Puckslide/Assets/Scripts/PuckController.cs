@@ -13,22 +13,29 @@ public class PuckController : MonoBehaviour
 
     [SerializeField]
     private Sprite[] m_Sprites;
-    
+
     private Vector3 m_DragStartPos;
-    private bool m_IsBeingDragged;
+    private Camera m_Camera;
 
     private bool m_IsSticky;
     
     private const float STOP_THRESHOLD = 0.05f;
 
+    private void Awake()
+    {
+        m_Camera = Camera.main;
+    }
+
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.AddListener(OnDelete);
+        EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
     }
-    
+
     private void OnDisable()
     {
         EventsManager.OnDeletePucks.RemoveListener(OnDelete);
+        EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
     }
 
     private void OnDelete(bool delete)
@@ -94,8 +101,7 @@ public class PuckController : MonoBehaviour
             m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         }
         
-        m_DragStartPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        m_IsBeingDragged = true;
+        m_DragStartPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         
         if (m_LineRenderer != null)
         {
@@ -111,7 +117,7 @@ public class PuckController : MonoBehaviour
     {
         if (m_LineRenderer != null && m_LineRenderer.enabled)
         {
-            Vector3 dragPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
             dragPos.z = 0; 
 
             Vector3 puckCenter = transform.position;
@@ -124,15 +130,13 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseUp()
     {
-        Vector3 dragEndPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
 
         float power = 5f;
         m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         m_Rigidbody.AddForce(dragVector * power, ForceMode2D.Impulse);
 
-        m_IsBeingDragged = false;
-        
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = false;
