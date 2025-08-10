@@ -111,9 +111,9 @@ public static class BoardFlipper
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
 
-                Vector3 offset = puck.transform.position - boardCenter;
-                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
-                    boardCenter.y - offset.y,
+                Vector3 offset = puck.transform.position - boardCenterBefore;
+                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
+                    boardCenterBefore.y - offset.y,
 
                     puck.transform.position.z);
                 // Apply the board translation so independent pucks stay aligned.
@@ -136,9 +136,9 @@ public static class BoardFlipper
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
 
-                Vector3 offset = piece.transform.position - boardCenter;
-                Vector3 newPos = new Vector3(boardCenter.x - offset.x,
-                    boardCenter.y - offset.y,
+                Vector3 offset = piece.transform.position - boardCenterBefore;
+                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
+                    boardCenterBefore.y - offset.y,
 
                     piece.transform.position.z);
                 // Apply the board translation so independent pieces stay aligned.
