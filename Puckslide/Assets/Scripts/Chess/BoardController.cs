@@ -205,7 +205,7 @@ public class BoardController : MonoBehaviour
                 }
 
                 m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
-                BoardFlipper.Flip();
+                BoardFlipper.FlipCamera();
                 moveMade = true;
             }
 
