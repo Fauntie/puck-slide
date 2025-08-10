@@ -8,25 +8,27 @@ public static class BoardFlipper
     private static int s_GridSize;
     private static float s_TileSize;
 
-    private static Vector3 s_BoardCenter;
-
     public static void SetBoard(Transform board, int gridSize, float tileSize)
     {
         s_BoardTransform = board;
 
         s_GridSize = gridSize;
         s_TileSize = tileSize;
-
-        // Calculate the actual world-space center of the board. The board's
-        // transform position represents the bottom-left corner of the grid, so
-        // we offset by half of the board's width and height to get the center.
-        float halfSize = (gridSize - 1) * tileSize * 0.5f;
-        s_BoardCenter = board.position + new Vector3(halfSize, halfSize, 0f);
     }
 
     private static Vector3 GetBoardCenter()
     {
-        return s_BoardCenter;
+        if (s_BoardTransform == null)
+        {
+            return Vector3.zero;
+        }
+
+        // The board's local origin is at the bottom-left corner of the grid.
+        // We convert the local centre point of the grid into world space every
+        // time we flip so the calculation remains correct even after the
+        // transform has moved or rotated.
+        float halfSize = (s_GridSize - 1) * s_TileSize * 0.5f;
+        return s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
 
     }
 
