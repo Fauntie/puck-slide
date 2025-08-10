@@ -1,0 +1,177 @@
+using System;
+using UnityEngine;
+
+public class PuckController : MonoBehaviour
+{
+    [SerializeField]
+    private Rigidbody2D m_Rigidbody;
+    [SerializeField]
+    private LineRenderer m_LineRenderer;
+
+    [SerializeField]
+    private SpriteRenderer m_SpriteRenderer;
+
+    [SerializeField]
+    private Sprite[] m_Sprites;
+    
+    private Vector3 m_DragStartPos;
+    private bool m_IsBeingDragged;
+
+    private bool m_IsSticky;
+    
+    private const float STOP_THRESHOLD = 0.05f;
+
+    private void OnEnable()
+    {
+        EventsManager.OnDeletePucks.AddListener(OnDelete);
+    }
+    
+    private void OnDisable()
+    {
+        EventsManager.OnDeletePucks.RemoveListener(OnDelete);
+    }
+
+    private void OnDelete(bool delete)
+    {
+        if (delete)
+        {
+            Destroy(gameObject);
+        }
+    }
+    
+    private void Update()
+    {
+        if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Dynamic)
+        {
+            if (m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD)
+            {
+                m_Rigidbody.bodyType = RigidbodyType2D.Static;
+            }
+        }
+    }
+
+
+    public void Init(ChessPieceType chessPieceType, bool isSticky, bool isWhite)
+    {
+        switch (chessPieceType)
+        {
+            case ChessPieceType.Pawn:
+                ChessPiece = isWhite ? ChessPiece.W_Pawn : ChessPiece.B_Pawn;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[9] : m_Sprites[3];
+                break;
+            case ChessPieceType.Knight:
+                ChessPiece = isWhite ? ChessPiece.W_Knight : ChessPiece.B_Knight;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[8] : m_Sprites[2];
+                break;
+            case ChessPieceType.Bishop:
+                ChessPiece = isWhite ? ChessPiece.W_Bishop : ChessPiece.B_Bishop;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[6] : m_Sprites[0];
+                break;
+            case ChessPieceType.Rook:
+                ChessPiece = isWhite ? ChessPiece.W_Rook : ChessPiece.B_Rook;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[11] : m_Sprites[5];
+                break;
+            case ChessPieceType.Queen:
+                ChessPiece = isWhite ? ChessPiece.W_Queen : ChessPiece.B_Queen;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[10] : m_Sprites[4];
+                break;
+            case ChessPieceType.King:
+                ChessPiece = isWhite ? ChessPiece.W_King : ChessPiece.B_King;
+                m_SpriteRenderer.sprite = isWhite ? m_Sprites[7] : m_Sprites[1];
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(chessPieceType), chessPieceType, null);
+        }
+
+        m_IsSticky = isSticky;
+        m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
+    }
+
+    private void OnMouseDown()
+    {
+        if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Static)
+        {
+            m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
+        }
+        
+        m_DragStartPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        m_IsBeingDragged = true;
+        
+        if (m_LineRenderer != null)
+        {
+            m_LineRenderer.enabled = true;
+            Vector3 start = transform.position;
+            start.z = 0;
+            m_LineRenderer.SetPosition(0, start);
+            m_LineRenderer.SetPosition(1, start);
+        }
+    }
+
+    private void OnMouseDrag()
+    {
+        if (m_LineRenderer != null && m_LineRenderer.enabled)
+        {
+            Vector3 dragPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            dragPos.z = 0; 
+
+            Vector3 puckCenter = transform.position;
+            puckCenter.z = 0;
+            m_LineRenderer.SetPosition(0, puckCenter);
+
+            m_LineRenderer.SetPosition(1, dragPos);
+        }
+    }
+
+    private void OnMouseUp()
+    {
+        Vector3 dragEndPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 dragVector = (m_DragStartPos - dragEndPos);
+
+        float power = 5f;
+        m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
+        m_Rigidbody.AddForce(dragVector * power, ForceMode2D.Impulse);
+
+        m_IsBeingDragged = false;
+        
+        if (m_LineRenderer != null)
+        {
+            m_LineRenderer.enabled = false;
+        }
+    }
+    
+    public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck
+    public ChessPiece ChessPiece { get; private set; }
+
+    public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
+    {
+        // Calculate the current grid position based on the puck's position
+        Vector2 worldPosition = transform.position;
+
+        int gridX = Mathf.FloorToInt((worldPosition.x - gridOrigin.x) / tileSize);
+        int gridY = Mathf.FloorToInt((worldPosition.y - gridOrigin.y) / tileSize);
+
+        if (gridX < 0 || gridX > 7 || gridY < 0 || gridY > 7)
+        {
+            CurrentGridPosition = new Vector2Int(-1,-1);
+        }
+        else
+        {
+            CurrentGridPosition = new Vector2Int(gridX, gridY);
+        }
+    }
+
+    public void SnapToGrid(float tileSize, Vector2 gridOrigin)
+    {
+        Vector2 worldPosition = transform.position;
+        
+        int gridX = Mathf.FloorToInt((worldPosition.x - gridOrigin.x) / tileSize);
+        int gridY = Mathf.FloorToInt((worldPosition.y - gridOrigin.y) / tileSize);
+        
+        // The center of tile (gridX, gridY):
+        float centerX = gridOrigin.x + (gridX + 0.5f) * tileSize;
+        float centerY = gridOrigin.y + (gridY + 0.5f) * tileSize;
+        transform.position = new Vector2(centerX, centerY);
+
+        m_Rigidbody.velocity = Vector2.zero;
+    }
+}
