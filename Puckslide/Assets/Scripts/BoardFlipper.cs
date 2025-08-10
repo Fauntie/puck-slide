@@ -17,7 +17,11 @@ public static class BoardFlipper
         s_GridSize = gridSize;
         s_TileSize = tileSize;
 
-        s_BoardCenter = board.position;
+        // Calculate the actual world-space center of the board. The board's
+        // transform position represents the bottom-left corner of the grid, so
+        // we offset by half of the board's width and height to get the center.
+        float halfSize = (gridSize - 1) * tileSize * 0.5f;
+        s_BoardCenter = board.position + new Vector3(halfSize, halfSize, 0f);
     }
 
     private static Vector3 GetBoardCenter()
