@@ -102,4 +102,21 @@ public static class BoardFlipper
             }
         }
     }
+
+    public static void FlipCamera()
+    {
+        if (s_BoardTransform == null)
+        {
+            return;
+        }
+
+        s_IsFlipped = !s_IsFlipped;
+
+        Vector3 boardCenter = GetBoardCenter();
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            cam.transform.RotateAround(boardCenter, Vector3.forward, 180f);
+        }
+    }
 }
