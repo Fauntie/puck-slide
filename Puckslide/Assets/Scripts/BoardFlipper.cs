@@ -8,6 +8,7 @@ public static class BoardFlipper
     private static int s_GridSize;
     private static float s_TileSize;
 
+    private static Vector3 s_BoardCenter;
 
     public static void SetBoard(Transform board, int gridSize, float tileSize)
     {
@@ -15,11 +16,13 @@ public static class BoardFlipper
 
         s_GridSize = gridSize;
         s_TileSize = tileSize;
+
+        s_BoardCenter = board.position + new Vector3((gridSize - 1) * tileSize / 2f, (gridSize - 1) * tileSize / 2f, 0f);
     }
 
     private static Vector3 GetBoardCenter()
     {
-        return s_BoardTransform.position + new Vector3(s_GridSize * s_TileSize / 2f, s_GridSize * s_TileSize / 2f, 0f);
+        return s_BoardCenter;
 
     }
 
