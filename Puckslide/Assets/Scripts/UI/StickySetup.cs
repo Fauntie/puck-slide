@@ -16,7 +16,7 @@ public class StickySetup : MonoBehaviour
 
     private void OnEnable()
     {
-        m_StickyToggle.isOn = false;
+        m_StickyToggle.isOn = m_GameSetupManager.GetSticky(m_ChessPieceType);
         m_StickyToggle.onValueChanged.AddListener(OnToggle);
     }
     
