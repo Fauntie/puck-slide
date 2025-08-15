@@ -188,6 +188,7 @@ public static class BoardFlipper
         Camera cam = Camera.main;
         if (cam != null)
         {
+            cam.transform.position = new Vector3(boardCenter.x, boardCenter.y, cam.transform.position.z);
             cam.transform.RotateAround(boardCenter, Vector3.forward, 180f);
         }
     }
