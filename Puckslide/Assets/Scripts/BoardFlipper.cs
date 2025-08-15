@@ -200,13 +200,14 @@ public static class BoardFlipper
         }
 
         // Ensure pucks remain upright relative to the player's view when the
-        // camera is flipped. Without this, sprites appear upside down in the
-        // reversed board state of Phase 2.
+
+        // camera is flipped. Rotating them by 180° each time we flip the camera
+        // preserves their original orientation without relying on a hardcoded
+        // absolute rotation.
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
-            puck.transform.rotation = s_IsFlipped
-                ? Quaternion.Euler(0f, 0f, 180f)
-                : Quaternion.identity;
+            puck.transform.Rotate(0f, 0f, 180f, Space.Self);
+
         }
     }
 }
