@@ -200,12 +200,14 @@ public static class BoardFlipper
         }
 
         // Ensure pucks remain upright relative to the player's view when the
+
         // camera is flipped. Rotating them by 180° each time we flip the camera
         // preserves their original orientation without relying on a hardcoded
         // absolute rotation.
         foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
         {
             puck.transform.Rotate(0f, 0f, 180f, Space.Self);
+
         }
     }
 }
