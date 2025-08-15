@@ -188,6 +188,7 @@ public static class BoardFlipper
         Camera cam = Camera.main;
         if (cam != null)
         {
+
             // Preserve the camera's original offset from the board centre so the board
             // remains in the exact same screen position after the flip.
             Vector3 offset = cam.transform.position - boardCenter;
