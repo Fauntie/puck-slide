@@ -24,7 +24,7 @@ public class PieceSetupCounter : MonoBehaviour
 
     private void OnEnable()
     {
-        m_CurrentCount = 0;
+        m_CurrentCount = m_GameSetupManager.GetCount(m_ChessPieceType, m_IsWhiteCounter);
         m_TextMeshProUGUI.text = $"{m_CurrentCount}";
         m_MinusButton.onClick.AddListener(MinusPressed);
         m_PlusButton.onClick.AddListener(PlusPressed);

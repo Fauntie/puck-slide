@@ -31,12 +31,12 @@ public class GameSetupManager : MonoBehaviour
     [SerializeField]
     private PieceSetupData[] m_PieceSetup = new PieceSetupData[]
     {
-        new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=0, BlackCount=0, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=0, BlackCount=0, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=0, BlackCount=0, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=0, BlackCount=0, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=0, BlackCount=0, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=0, BlackCount=0, Sticky=false },
+        new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
+        new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
+        new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
+        new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
+        new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
+        new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=false },
     };
 
     [SerializeField]
@@ -52,12 +52,12 @@ public class GameSetupManager : MonoBehaviour
 
         m_PieceSetup = new PieceSetupData[]
         {
-            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=0, BlackCount=0, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=0, BlackCount=0, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=0, BlackCount=0, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=0, BlackCount=0, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=0, BlackCount=0, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=0, BlackCount=0, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
+            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=false },
         };
     }
 
@@ -122,6 +122,34 @@ public class GameSetupManager : MonoBehaviour
                 return;
             }
         }
+    }
+
+    public int GetCount(ChessPieceType pieceType, bool isWhite)
+    {
+        for (int i = 0; i < m_PieceSetup.Length; i++)
+        {
+            if (m_PieceSetup[i].Type == pieceType)
+            {
+                return isWhite ? m_PieceSetup[i].WhiteCount : m_PieceSetup[i].BlackCount;
+            }
+        }
+
+        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+        return 0;
+    }
+
+    public bool GetSticky(ChessPieceType pieceType)
+    {
+        for (int i = 0; i < m_PieceSetup.Length; i++)
+        {
+            if (m_PieceSetup[i].Type == pieceType)
+            {
+                return m_PieceSetup[i].Sticky;
+            }
+        }
+
+        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+        return false;
     }
 
 
