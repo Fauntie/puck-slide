@@ -35,7 +35,8 @@ public class PuckController : MonoBehaviour
 
     private const float STOP_THRESHOLD = 0.05f;
     [SerializeField]
-    private float m_MaxShootForce = 12f;
+    // Reduced max shoot force by 20% to limit shot strength
+    private float m_MaxShootForce = 9.6f;
 
     [SerializeField]
     private float m_MinLineWidth = 0.05f;
