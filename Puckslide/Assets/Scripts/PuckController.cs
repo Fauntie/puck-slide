@@ -60,7 +60,10 @@ public class PuckController : MonoBehaviour
     {
         m_Camera = Camera.main;
         m_Rigidbody.freezeRotation = true;
-        m_TrajectoryRenderer ??= GetComponent<LineRenderer>();
+        if (m_TrajectoryRenderer == null)
+        {
+            m_TrajectoryRenderer = GetComponent<LineRenderer>();
+        }
         if (m_TrajectoryRenderer == null)
         {
             Debug.LogWarning("PuckController requires a LineRenderer component.", this);
