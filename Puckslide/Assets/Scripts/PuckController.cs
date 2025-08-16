@@ -10,6 +10,15 @@ public class PuckController : MonoBehaviour
     private LineRenderer m_LineRenderer;
 
     [SerializeField]
+    private Material m_ArrowMaterial;
+
+    [SerializeField]
+    private float m_MinLineWidth = 0.05f;
+
+    [SerializeField]
+    private float m_MaxLineWidth = 0.2f;
+
+    [SerializeField]
     private SpriteRenderer m_SpriteRenderer;
 
     [SerializeField]
@@ -21,6 +30,7 @@ public class PuckController : MonoBehaviour
     private bool m_IsSticky;
 
     private const float STOP_THRESHOLD = 0.05f;
+    private const float MAX_DRAG_DISTANCE = 3f;
     private static bool? s_LastMoveWasWhite = null;
     private bool m_IsSelected;
 
@@ -117,10 +127,18 @@ public class PuckController : MonoBehaviour
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
+            if (m_ArrowMaterial != null)
+            {
+                m_LineRenderer.material = m_ArrowMaterial;
+                m_LineRenderer.textureMode = LineTextureMode.Stretch;
+            }
+
             Vector3 start = transform.position;
             start.z = 0;
             m_LineRenderer.SetPosition(0, start);
             m_LineRenderer.SetPosition(1, start);
+            m_LineRenderer.startColor = m_LineRenderer.endColor = Color.green;
+            m_LineRenderer.startWidth = m_LineRenderer.endWidth = m_MinLineWidth;
         }
     }
 
@@ -136,11 +154,31 @@ public class PuckController : MonoBehaviour
             Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
             dragPos.z = 0;
 
+            Vector3 direction = dragPos - m_DragStartPos;
+            float magnitude = direction.magnitude;
+            if (magnitude > MAX_DRAG_DISTANCE)
+            {
+                direction = direction.normalized * MAX_DRAG_DISTANCE;
+                dragPos = m_DragStartPos + direction;
+                magnitude = MAX_DRAG_DISTANCE;
+            }
+
             Vector3 puckCenter = transform.position;
             puckCenter.z = 0;
             m_LineRenderer.SetPosition(0, puckCenter);
-
             m_LineRenderer.SetPosition(1, dragPos);
+
+            float t = magnitude / MAX_DRAG_DISTANCE;
+            Color color = t <= 0.5f ? Color.Lerp(Color.green, Color.yellow, t * 2f) :
+                Color.Lerp(Color.yellow, Color.red, (t - 0.5f) * 2f);
+            m_LineRenderer.startColor = m_LineRenderer.endColor = color;
+            float width = Mathf.Lerp(m_MinLineWidth, m_MaxLineWidth, t);
+            m_LineRenderer.startWidth = m_LineRenderer.endWidth = width;
+
+            if (m_ArrowMaterial != null)
+            {
+                m_LineRenderer.material.mainTextureScale = new Vector2(magnitude, 1f);
+            }
         }
     }
 
@@ -153,8 +191,7 @@ public class PuckController : MonoBehaviour
 
         Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
-        const float maxDragDistance = 3f;
-        dragVector = Vector2.ClampMagnitude(dragVector, maxDragDistance);
+        dragVector = Vector2.ClampMagnitude(dragVector, MAX_DRAG_DISTANCE);
 
         float power = 4f;
 
