@@ -393,7 +393,6 @@ public class PuckController : MonoBehaviour
         if (reachedBoard)
         {
             s_IsWhiteTurn = !s_IsWhiteTurn;
-            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
             if (Phase2Manager.IsPhase2Active)
             {
                 BoardFlipper.FlipCamera();
@@ -402,6 +401,7 @@ public class PuckController : MonoBehaviour
             {
                 BoardFlipper.Flip();
             }
+            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
         }
         else
         {
@@ -409,6 +409,7 @@ public class PuckController : MonoBehaviour
             // Shot stopped before reaching the board—reset for another try
 
             m_Rigidbody.position = m_StartPosition;
+            transform.position = m_StartPosition;
             m_Rigidbody.velocity = Vector2.zero;
             m_Rigidbody.angularVelocity = 0f;
             transform.rotation = Quaternion.identity;
