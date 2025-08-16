@@ -10,6 +10,7 @@ public class PuckController : MonoBehaviour
     private LineRenderer m_LineRenderer;
 
     [SerializeField]
+
     private Material m_ArrowMaterial;
 
     [SerializeField]
@@ -18,11 +19,15 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private float m_MaxLineWidth = 0.2f;
 
+
     [SerializeField]
     private SpriteRenderer m_SpriteRenderer;
 
     [SerializeField]
     private Sprite[] m_Sprites;
+
+    [SerializeField]
+    private float m_MaxDragDistance = 3f;
 
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
@@ -137,8 +142,10 @@ public class PuckController : MonoBehaviour
             start.z = 0;
             m_LineRenderer.SetPosition(0, start);
             m_LineRenderer.SetPosition(1, start);
+
             m_LineRenderer.startColor = m_LineRenderer.endColor = Color.green;
             m_LineRenderer.startWidth = m_LineRenderer.endWidth = m_MinLineWidth;
+
         }
     }
 
@@ -166,6 +173,7 @@ public class PuckController : MonoBehaviour
             Vector3 puckCenter = transform.position;
             puckCenter.z = 0;
             m_LineRenderer.SetPosition(0, puckCenter);
+
             m_LineRenderer.SetPosition(1, dragPos);
 
             float t = magnitude / MAX_DRAG_DISTANCE;
@@ -179,6 +187,7 @@ public class PuckController : MonoBehaviour
             {
                 m_LineRenderer.material.mainTextureScale = new Vector2(magnitude, 1f);
             }
+
         }
     }
 
@@ -191,7 +200,9 @@ public class PuckController : MonoBehaviour
 
         Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
+
         dragVector = Vector2.ClampMagnitude(dragVector, MAX_DRAG_DISTANCE);
+
 
         float power = 4f;
 
@@ -203,10 +214,34 @@ public class PuckController : MonoBehaviour
             m_LineRenderer.enabled = false;
         }
 
+        if (m_DragLimitRenderer != null)
+        {
+            m_DragLimitRenderer.enabled = false;
+        }
+
         s_LastMoveWasWhite = IsWhitePiece;
         m_IsSelected = false;
 
         StartCoroutine(WaitForPuckStopped());
+    }
+
+    private void DrawDragLimitCircle(Vector3 center)
+    {
+        if (m_DragLimitRenderer == null)
+        {
+            return;
+        }
+
+        int segments = 32;
+        m_DragLimitRenderer.loop = true;
+        m_DragLimitRenderer.positionCount = segments;
+        for (int i = 0; i < segments; i++)
+        {
+            float angle = i * Mathf.PI * 2f / segments;
+            Vector3 pos = center + new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * m_MaxDragDistance;
+            m_DragLimitRenderer.SetPosition(i, pos);
+        }
+        m_DragLimitRenderer.enabled = true;
     }
 
     private IEnumerator WaitForPuckStopped()
