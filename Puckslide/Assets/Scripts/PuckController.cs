@@ -47,6 +47,11 @@ public class PuckController : MonoBehaviour
     private static bool s_IsWhiteTurn = true;
     private bool m_IsSelected;
 
+    [SerializeField]
+    private float m_BoardEntryY = 0f;
+
+    private Vector3 m_StartPosition;
+
     private void Awake()
     {
         m_Camera = Camera.main;
@@ -87,6 +92,8 @@ public class PuckController : MonoBehaviour
             mat.mainTextureScale = new Vector2(10f, 1f);
             m_TrajectoryRenderer.material = mat;
         }
+
+        m_StartPosition = transform.position;
     }
 
     private void OnEnable()
@@ -273,9 +280,6 @@ public class PuckController : MonoBehaviour
         {
             m_TrajectoryRenderer.enabled = false;
         }
-
-        s_IsWhiteTurn = !s_IsWhiteTurn;
-        EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
         m_IsSelected = false;
 
         StartCoroutine(WaitForPuckStopped());
@@ -327,13 +331,26 @@ public class PuckController : MonoBehaviour
     {
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
-        if (Phase2Manager.IsPhase2Active)
+        bool reachedBoard = transform.position.y >= m_BoardEntryY;
+        if (reachedBoard)
         {
-            BoardFlipper.FlipCamera();
+            s_IsWhiteTurn = !s_IsWhiteTurn;
+            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+            if (Phase2Manager.IsPhase2Active)
+            {
+                BoardFlipper.FlipCamera();
+            }
+            else
+            {
+                BoardFlipper.Flip();
+            }
         }
         else
         {
-            BoardFlipper.Flip();
+            m_Rigidbody.position = m_StartPosition;
+            m_Rigidbody.velocity = Vector2.zero;
+            m_Rigidbody.angularVelocity = 0f;
+            transform.rotation = Quaternion.identity;
         }
     }
 
