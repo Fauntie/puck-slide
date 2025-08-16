@@ -153,8 +153,9 @@ public class PuckController : MonoBehaviour
 
         Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
-
-        float power = 5f;
+        const float maxDragDistance = 3f;
+        dragVector = Vector2.ClampMagnitude(dragVector, maxDragDistance);
+        float power = 4f;
         m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         m_Rigidbody.AddForce(dragVector * power, ForceMode2D.Impulse);
 
