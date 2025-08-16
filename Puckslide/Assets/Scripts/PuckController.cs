@@ -47,8 +47,9 @@ public class PuckController : MonoBehaviour
     private static bool s_IsWhiteTurn = true;
     private bool m_IsSelected;
 
-    [SerializeField]
-    private float m_BoardEntryY = 0f;
+
+    private float m_BoardEntryY;
+
 
     private Vector3 m_StartPosition;
 
@@ -93,7 +94,44 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.material = mat;
         }
 
+
+        DetermineBoardEntryY();
         m_StartPosition = transform.position;
+    }
+
+    private void DetermineBoardEntryY()
+    {
+        Tile[] tiles = FindObjectsOfType<Tile>();
+        if (tiles.Length == 0)
+        {
+            Debug.LogWarning("PuckController could not locate any tiles to determine board entry.", this);
+            m_BoardEntryY = 0f;
+            return;
+        }
+
+        float minY = tiles[0].transform.position.y;
+        float halfHeight = 0f;
+        SpriteRenderer sr = tiles[0].GetComponent<SpriteRenderer>();
+        if (sr != null)
+        {
+            halfHeight = sr.bounds.extents.y;
+        }
+        else
+        {
+            halfHeight = tiles[0].transform.localScale.y * 0.5f;
+        }
+
+        for (int i = 1; i < tiles.Length; i++)
+        {
+            float y = tiles[i].transform.position.y;
+            if (y < minY)
+            {
+                minY = y;
+            }
+        }
+
+        m_BoardEntryY = minY - halfHeight;
+
     }
 
     private void OnEnable()
@@ -173,6 +211,7 @@ public class PuckController : MonoBehaviour
         }
 
         m_IsSelected = true;
+        m_StartPosition = transform.position;
         if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Static)
         {
             m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
@@ -347,6 +386,9 @@ public class PuckController : MonoBehaviour
         }
         else
         {
+
+            // Shot stopped before reaching the board—reset for another try
+
             m_Rigidbody.position = m_StartPosition;
             m_Rigidbody.velocity = Vector2.zero;
             m_Rigidbody.angularVelocity = 0f;
