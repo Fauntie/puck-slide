@@ -96,16 +96,23 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.material = mat;
         }
 
-
-        UpdateBoardEntryLines();
         m_StartPosition = transform.position;
+    }
+
+    private void Start()
+    {
+        UpdateBoardEntryLines();
     }
 
     // Recalculate the entry lines at the top and bottom of the board.
     public void UpdateBoardEntryLines()
     {
         Transform board = BoardFlipper.GetBoardTransform();
-        Tile[] tiles = board != null ? board.GetComponentsInChildren<Tile>() : Array.Empty<Tile>();
+        if (board == null)
+        {
+            return;
+        }
+        Tile[] tiles = board.GetComponentsInChildren<Tile>();
         if (tiles.Length == 0)
         {
             Debug.LogWarning("PuckController could not locate any board tiles to determine board entry.", this);
@@ -148,6 +155,7 @@ public class PuckController : MonoBehaviour
     {
         EventsManager.OnDeletePucks.AddListener(OnDelete);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        BoardFlipper.OnBoardSet += UpdateBoardEntryLines;
         EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
     }
 
@@ -155,6 +163,7 @@ public class PuckController : MonoBehaviour
     {
         EventsManager.OnDeletePucks.RemoveListener(OnDelete);
         EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        BoardFlipper.OnBoardSet -= UpdateBoardEntryLines;
         EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
         if (s_ActivePuck == this)
         {

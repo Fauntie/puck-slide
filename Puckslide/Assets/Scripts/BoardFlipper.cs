@@ -1,7 +1,10 @@
+using System;
 using UnityEngine;
 
 public static class BoardFlipper
 {
+    public static event Action OnBoardSet;
+
     private static bool s_IsFlipped = false;
     private static Transform s_BoardTransform;
 
@@ -20,6 +23,7 @@ public static class BoardFlipper
         s_TileSize = tileSize;
 
         RecalculateBoardCenter();
+        OnBoardSet?.Invoke();
     }
 
     public static void SetFlipOffset(Vector3 offset)
