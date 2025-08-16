@@ -66,6 +66,8 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.endColor = Color.red;
             m_TrajectoryRenderer.textureMode = LineTextureMode.Tile;
             m_TrajectoryRenderer.positionCount = 0;
+            m_TrajectoryRenderer.startWidth = m_MinLineWidth;
+            m_TrajectoryRenderer.endWidth = m_MinLineWidth;
 
             Texture2D tex = new Texture2D(2, 1);
             tex.SetPixel(0, 0, Color.white);
@@ -186,6 +188,8 @@ public class PuckController : MonoBehaviour
         {
             m_TrajectoryRenderer.enabled = true;
             m_TrajectoryRenderer.positionCount = 0;
+            m_TrajectoryRenderer.startWidth = m_MinLineWidth;
+            m_TrajectoryRenderer.endWidth = m_MinLineWidth;
         }
     }
 
