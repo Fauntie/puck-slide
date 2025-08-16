@@ -36,8 +36,8 @@ public class PuckController : MonoBehaviour
 
     private const float STOP_THRESHOLD = 0.05f;
     [SerializeField]
-    // Reduced max shoot force by 20% to limit shot strength
-    private float m_MaxShootForce = 9.6f;
+    // Further reduced max shoot force by 5% to limit shot strength
+    private float m_MaxShootForce = 9.12f;
 
     [SerializeField]
     private float m_MinLineWidth = 0.05f;
@@ -45,6 +45,7 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private float m_MaxLineWidth = 0.3f;
     private static bool s_IsWhiteTurn = true;
+    private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
     // Entry lines for both sides of the board.
@@ -153,6 +154,10 @@ public class PuckController : MonoBehaviour
         EventsManager.OnDeletePucks.RemoveListener(OnDelete);
         EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
         EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
+        if (s_ActivePuck == this)
+        {
+            s_ActivePuck = null;
+        }
     }
 
     private void OnTurnChanged(bool _)
@@ -218,12 +223,13 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (IsWhitePiece != s_IsWhiteTurn)
+        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this))
         {
             m_IsSelected = false;
             return;
         }
 
+        s_ActivePuck = this;
         m_IsSelected = true;
         m_StartPosition = transform.position;
         if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Static)
@@ -385,13 +391,11 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        bool startedFromTop = m_StartPosition.y > m_TopEntryY;
-        bool reachedBoard = startedFromTop
-            ? transform.position.y <= m_TopEntryY
-            : transform.position.y >= m_BottomEntryY;
+        bool reachedBoard = transform.position.y >= m_BottomEntryY && transform.position.y <= m_TopEntryY;
 
         if (reachedBoard)
         {
+            s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
             if (Phase2Manager.IsPhase2Active)
             {
@@ -405,9 +409,7 @@ public class PuckController : MonoBehaviour
         }
         else
         {
-
             // Shot stopped before reaching the board—reset for another try
-
             m_Rigidbody.position = m_StartPosition;
             transform.position = m_StartPosition;
             m_Rigidbody.velocity = Vector2.zero;
