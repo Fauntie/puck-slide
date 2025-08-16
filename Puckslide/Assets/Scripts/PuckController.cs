@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PuckController : MonoBehaviour
@@ -15,6 +16,13 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private Sprite[] m_Sprites;
 
+    [SerializeField]
+    private GameObject m_TrajectoryDotPrefab;
+    [SerializeField]
+    private int m_TrajectoryDotCount = 15;
+
+    private readonly List<GameObject> m_TrajectoryDots = new();
+
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
 
@@ -28,6 +36,21 @@ public class PuckController : MonoBehaviour
     {
         m_Camera = Camera.main;
         m_Rigidbody.freezeRotation = true;
+    }
+
+    private void Start()
+    {
+        for (int i = 0; i < m_TrajectoryDotCount; i++)
+        {
+            GameObject dot = Instantiate(m_TrajectoryDotPrefab);
+            dot.SetActive(false);
+            var sr = dot.GetComponent<SpriteRenderer>();
+            if (sr != null)
+            {
+                sr.color = Color.red;
+            }
+            m_TrajectoryDots.Add(dot);
+        }
     }
 
     private void OnEnable()
@@ -113,7 +136,7 @@ public class PuckController : MonoBehaviour
         }
 
         m_DragStartPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
-        
+
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
@@ -122,6 +145,8 @@ public class PuckController : MonoBehaviour
             m_LineRenderer.SetPosition(0, start);
             m_LineRenderer.SetPosition(1, start);
         }
+
+        HideTrajectory();
     }
 
     private void OnMouseDrag()
@@ -141,6 +166,11 @@ public class PuckController : MonoBehaviour
             m_LineRenderer.SetPosition(0, puckCenter);
 
             m_LineRenderer.SetPosition(1, dragPos);
+
+            Vector2 dragVector = (m_DragStartPos - dragPos);
+            const float maxDragDistance = 3f;
+            dragVector = Vector2.ClampMagnitude(dragVector, maxDragDistance);
+            ShowTrajectory(dragVector);
         }
     }
 
@@ -165,6 +195,8 @@ public class PuckController : MonoBehaviour
         {
             m_LineRenderer.enabled = false;
         }
+
+        HideTrajectory();
 
         s_LastMoveWasWhite = IsWhitePiece;
         m_IsSelected = false;
@@ -227,5 +259,31 @@ public class PuckController : MonoBehaviour
         transform.position = new Vector2(centerX, centerY);
 
         m_Rigidbody.velocity = Vector2.zero;
+    }
+
+    private void ShowTrajectory(Vector2 dragVector)
+    {
+        const float timeStep = 0.1f;
+        float power = 4f;
+        Vector2 velocity = dragVector * power / m_Rigidbody.mass;
+        Vector2 gravity = Physics2D.gravity;
+        Vector2 startPos = transform.position;
+
+        for (int i = 0; i < m_TrajectoryDots.Count; i++)
+        {
+            float t = timeStep * (i + 1);
+            Vector2 pos = startPos + velocity * t + 0.5f * gravity * t * t;
+            GameObject dot = m_TrajectoryDots[i];
+            dot.transform.position = pos;
+            dot.SetActive(true);
+        }
+    }
+
+    private void HideTrajectory()
+    {
+        foreach (GameObject dot in m_TrajectoryDots)
+        {
+            dot.SetActive(false);
+        }
     }
 }
