@@ -22,7 +22,7 @@ public class PuckController : MonoBehaviour
     private Sprite[] m_Sprites;
 
     [SerializeField]
-    private float m_MaxDragDistance = 3f;
+    private float m_MaxDragDistance = 1.5f;
 
     [SerializeField]
     private float m_ArrowHeadLength = 0.3f;
@@ -196,8 +196,8 @@ public class PuckController : MonoBehaviour
             Vector3 clampedOffset = Vector3.ClampMagnitude(offset, m_MaxDragDistance);
             Vector3 endPos = puckCenter + clampedOffset;
 
-            m_LineRenderer.SetPosition(0, puckCenter);
-            m_LineRenderer.SetPosition(1, endPos);
+            m_LineRenderer.SetPosition(0, endPos);
+            m_LineRenderer.SetPosition(1, puckCenter);
 
             float powerRatio = clampedOffset.magnitude / m_MaxDragDistance;
             Color powerColor = Color.Lerp(Color.green, Color.red, powerRatio);
@@ -206,14 +206,14 @@ public class PuckController : MonoBehaviour
 
             if (clampedOffset.sqrMagnitude > 0.0001f)
             {
-                Vector3 direction = clampedOffset.normalized;
+                Vector3 direction = (puckCenter - endPos).normalized;
                 Vector3 perp = new Vector3(-direction.y, direction.x, 0f);
-                Vector3 arrowBase = endPos - direction * m_ArrowHeadLength;
+                Vector3 arrowBase = puckCenter - direction * m_ArrowHeadLength;
                 Vector3 left = arrowBase + perp * m_ArrowHeadWidth * 0.5f;
                 Vector3 right = arrowBase - perp * m_ArrowHeadWidth * 0.5f;
 
                 m_LineRenderer.SetPosition(2, left);
-                m_LineRenderer.SetPosition(3, endPos);
+                m_LineRenderer.SetPosition(3, puckCenter);
                 m_LineRenderer.SetPosition(4, right);
             }
 
@@ -275,8 +275,9 @@ public class PuckController : MonoBehaviour
         Vector2 position = m_Rigidbody.position;
         Vector2 velocity = force / m_Rigidbody.mass;
 
-        m_TrajectoryRenderer.positionCount = steps;
-        for (int i = 0; i < steps; i++)
+        m_TrajectoryRenderer.positionCount = steps + 1;
+        m_TrajectoryRenderer.SetPosition(0, new Vector3(position.x, position.y, 0f));
+        for (int i = 1; i <= steps; i++)
         {
             position += velocity * timeStep;
             m_TrajectoryRenderer.SetPosition(i, new Vector3(position.x, position.y, 0f));
