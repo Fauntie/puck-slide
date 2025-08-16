@@ -4,7 +4,29 @@ using UnityEngine;
 public class TurnIndicator : MonoBehaviour
 {
     [SerializeField]
-    private TextMeshProUGUI m_Text;
+    private TextMeshPro m_Text;
+
+    [SerializeField]
+    private Vector3 m_Offset = new Vector3(0f, 0f, -0.1f);
+
+    private void Awake()
+    {
+        if (m_Text == null)
+        {
+            m_Text = GetComponent<TextMeshPro>();
+        }
+    }
+
+    private void Start()
+    {
+        Transform board = BoardFlipper.GetBoardTransform();
+        if (board != null)
+        {
+            Vector3 center = BoardFlipper.GetBoardCenter();
+            transform.position = center + m_Offset;
+            transform.SetParent(board, true);
+        }
+    }
 
     private void OnEnable()
     {

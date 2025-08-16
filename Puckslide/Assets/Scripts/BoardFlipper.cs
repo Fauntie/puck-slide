@@ -89,9 +89,14 @@ public static class BoardFlipper
         s_BoardCenter = s_BoardTransform.TransformPoint(new Vector3(halfSize, halfSize, 0f));
     }
 
-    private static Vector3 GetBoardCenter()
+    public static Vector3 GetBoardCenter()
     {
         return s_BoardCenter;
+    }
+
+    public static Transform GetBoardTransform()
+    {
+        return s_BoardTransform;
     }
 
     public static void Flip()
