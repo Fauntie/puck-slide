@@ -21,6 +21,12 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private float m_MaxDragDistance = 3f;
 
+    [SerializeField]
+    private float m_ArrowHeadLength = 0.3f;
+
+    [SerializeField]
+    private float m_ArrowHeadWidth = 0.15f;
+
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
 
@@ -123,10 +129,15 @@ public class PuckController : MonoBehaviour
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
+            m_LineRenderer.positionCount = 5;
             Vector3 start = transform.position;
             start.z = 0;
-            m_LineRenderer.SetPosition(0, start);
-            m_LineRenderer.SetPosition(1, start);
+            for (int i = 0; i < m_LineRenderer.positionCount; i++)
+            {
+                m_LineRenderer.SetPosition(i, start);
+            }
+            m_LineRenderer.startColor = Color.green;
+            m_LineRenderer.endColor = Color.green;
 
             DrawDragLimitCircle(start);
         }
@@ -146,11 +157,31 @@ public class PuckController : MonoBehaviour
 
             Vector3 puckCenter = transform.position;
             puckCenter.z = 0;
-            m_LineRenderer.SetPosition(0, puckCenter);
 
             Vector3 offset = dragPos - puckCenter;
             Vector3 clampedOffset = Vector3.ClampMagnitude(offset, m_MaxDragDistance);
-            m_LineRenderer.SetPosition(1, puckCenter + clampedOffset);
+            Vector3 endPos = puckCenter + clampedOffset;
+
+            m_LineRenderer.SetPosition(0, puckCenter);
+            m_LineRenderer.SetPosition(1, endPos);
+
+            float powerRatio = clampedOffset.magnitude / m_MaxDragDistance;
+            Color powerColor = Color.Lerp(Color.green, Color.red, powerRatio);
+            m_LineRenderer.startColor = powerColor;
+            m_LineRenderer.endColor = powerColor;
+
+            if (clampedOffset.sqrMagnitude > 0.0001f)
+            {
+                Vector3 direction = clampedOffset.normalized;
+                Vector3 perp = new Vector3(-direction.y, direction.x, 0f);
+                Vector3 arrowBase = endPos - direction * m_ArrowHeadLength;
+                Vector3 left = arrowBase + perp * m_ArrowHeadWidth * 0.5f;
+                Vector3 right = arrowBase - perp * m_ArrowHeadWidth * 0.5f;
+
+                m_LineRenderer.SetPosition(2, left);
+                m_LineRenderer.SetPosition(3, endPos);
+                m_LineRenderer.SetPosition(4, right);
+            }
 
             DrawDragLimitCircle(puckCenter);
         }
