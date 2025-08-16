@@ -13,6 +13,9 @@ public class PuckController : MonoBehaviour
     private LineRenderer m_DragLimitRenderer;
 
     [SerializeField]
+    private LineRenderer m_TrajectoryRenderer;
+
+    [SerializeField]
     private SpriteRenderer m_SpriteRenderer;
 
     [SerializeField]
@@ -30,9 +33,12 @@ public class PuckController : MonoBehaviour
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
 
+    private PuckFriction m_PuckFriction;
+
     private bool m_IsSticky;
 
     private const float STOP_THRESHOLD = 0.05f;
+    private const float SHOOT_POWER = 4f;
     private static bool? s_LastMoveWasWhite = null;
     private bool m_IsSelected;
 
@@ -40,6 +46,28 @@ public class PuckController : MonoBehaviour
     {
         m_Camera = Camera.main;
         m_Rigidbody.freezeRotation = true;
+        m_PuckFriction = GetComponent<PuckFriction>();
+
+        if (m_TrajectoryRenderer != null)
+        {
+            m_TrajectoryRenderer.enabled = false;
+            m_TrajectoryRenderer.startColor = Color.red;
+            m_TrajectoryRenderer.endColor = Color.red;
+            m_TrajectoryRenderer.textureMode = LineTextureMode.Tile;
+            m_TrajectoryRenderer.positionCount = 0;
+
+            Texture2D tex = new Texture2D(2, 1);
+            tex.SetPixel(0, 0, Color.white);
+            tex.SetPixel(1, 0, Color.clear);
+            tex.filterMode = FilterMode.Point;
+            tex.wrapMode = TextureWrapMode.Repeat;
+            tex.Apply();
+
+            Material mat = new Material(Shader.Find("Sprites/Default"));
+            mat.mainTexture = tex;
+            mat.mainTextureScale = new Vector2(10f, 1f);
+            m_TrajectoryRenderer.material = mat;
+        }
     }
 
     private void OnEnable()
@@ -141,6 +169,12 @@ public class PuckController : MonoBehaviour
 
             DrawDragLimitCircle(start);
         }
+
+        if (m_TrajectoryRenderer != null)
+        {
+            m_TrajectoryRenderer.enabled = true;
+            m_TrajectoryRenderer.positionCount = 0;
+        }
     }
 
     private void OnMouseDrag()
@@ -183,6 +217,12 @@ public class PuckController : MonoBehaviour
                 m_LineRenderer.SetPosition(4, right);
             }
 
+            Vector3 dragVector = -clampedOffset;
+            if (m_TrajectoryRenderer != null && m_TrajectoryRenderer.enabled)
+            {
+                UpdateTrajectory(dragVector * SHOOT_POWER);
+            }
+
             DrawDragLimitCircle(puckCenter);
         }
     }
@@ -198,10 +238,8 @@ public class PuckController : MonoBehaviour
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
         dragVector = Vector2.ClampMagnitude(dragVector, m_MaxDragDistance);
 
-        float power = 4f;
-
         m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
-        m_Rigidbody.AddForce(dragVector * power, ForceMode2D.Impulse);
+        m_Rigidbody.AddForce(dragVector * SHOOT_POWER, ForceMode2D.Impulse);
 
         if (m_LineRenderer != null)
         {
@@ -213,10 +251,37 @@ public class PuckController : MonoBehaviour
             m_DragLimitRenderer.enabled = false;
         }
 
+        if (m_TrajectoryRenderer != null)
+        {
+            m_TrajectoryRenderer.enabled = false;
+        }
+
         s_LastMoveWasWhite = IsWhitePiece;
         m_IsSelected = false;
 
         StartCoroutine(WaitForPuckStopped());
+    }
+
+    private void UpdateTrajectory(Vector2 force)
+    {
+        if (m_TrajectoryRenderer == null)
+        {
+            return;
+        }
+
+        int steps = 30;
+        float timeStep = Time.fixedDeltaTime;
+        float friction = m_PuckFriction != null ? m_PuckFriction.Friction : 0.98f;
+        Vector2 position = m_Rigidbody.position;
+        Vector2 velocity = force / m_Rigidbody.mass;
+
+        m_TrajectoryRenderer.positionCount = steps;
+        for (int i = 0; i < steps; i++)
+        {
+            position += velocity * timeStep;
+            m_TrajectoryRenderer.SetPosition(i, new Vector3(position.x, position.y, 0f));
+            velocity *= friction;
+        }
     }
 
     private void DrawDragLimitCircle(Vector3 center)
