@@ -196,19 +196,27 @@ public class PuckController : MonoBehaviour
             return;
         }
 
+        Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        dragPos.z = 0;
+
+        Vector3 puckCenter = transform.position;
+        puckCenter.z = 0;
+
+        Vector3 offset = dragPos - puckCenter;
+        Vector3 clampedOffset = Vector3.ClampMagnitude(offset, m_MaxDragDistance);
+        Vector3 endPos = puckCenter + clampedOffset;
+
+        float powerRatio = clampedOffset.magnitude / m_MaxDragDistance;
+        Vector3 direction = (puckCenter - endPos).normalized;
+        Vector3 dragVector = direction * (powerRatio * m_MaxShootForce);
+
+        if (m_TrajectoryRenderer != null && m_TrajectoryRenderer.enabled)
+        {
+            UpdateTrajectory(dragVector);
+        }
+
         if (m_LineRenderer != null && m_LineRenderer.enabled)
         {
-            Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
-            dragPos.z = 0;
-
-            Vector3 puckCenter = transform.position;
-            puckCenter.z = 0;
-
-            Vector3 offset = dragPos - puckCenter;
-            Vector3 clampedOffset = Vector3.ClampMagnitude(offset, m_MaxDragDistance);
-            Vector3 endPos = puckCenter + clampedOffset;
-
-            float powerRatio = clampedOffset.magnitude / m_MaxDragDistance;
             Color powerColor = Color.Lerp(Color.green, Color.red, powerRatio);
             m_LineRenderer.startColor = powerColor;
             m_LineRenderer.endColor = powerColor;
@@ -219,13 +227,6 @@ public class PuckController : MonoBehaviour
             float endWidth = Mathf.Lerp(m_MinLineWidth, m_MaxLineWidth, powerRatio);
             m_LineRenderer.startWidth = m_MinLineWidth;
             m_LineRenderer.endWidth = endWidth;
-
-            Vector3 direction = (puckCenter - endPos).normalized;
-            Vector3 dragVector = direction * (powerRatio * m_MaxShootForce);
-            if (m_TrajectoryRenderer != null && m_TrajectoryRenderer.enabled)
-            {
-                UpdateTrajectory(dragVector);
-            }
 
             DrawDragLimitCircle(puckCenter);
         }
