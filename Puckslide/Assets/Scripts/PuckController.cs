@@ -53,6 +53,7 @@ public class PuckController : MonoBehaviour
     private float m_TopEntryY;
 
     private Vector3 m_StartPosition;
+    private bool m_HasReachedBoard;
 
     private void Awake()
     {
@@ -103,10 +104,11 @@ public class PuckController : MonoBehaviour
     // Recalculate the entry lines at the top and bottom of the board.
     public void UpdateBoardEntryLines()
     {
-        Tile[] tiles = FindObjectsOfType<Tile>();
+        Transform board = BoardFlipper.GetBoardTransform();
+        Tile[] tiles = board != null ? board.GetComponentsInChildren<Tile>() : Array.Empty<Tile>();
         if (tiles.Length == 0)
         {
-            Debug.LogWarning("PuckController could not locate any tiles to determine board entry.", this);
+            Debug.LogWarning("PuckController could not locate any board tiles to determine board entry.", this);
             m_BottomEntryY = 0f;
             m_TopEntryY = 0f;
             return;
@@ -223,7 +225,9 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this))
+
+        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+
         {
             m_IsSelected = false;
             return;
@@ -395,6 +399,9 @@ public class PuckController : MonoBehaviour
 
         if (reachedBoard)
         {
+
+            m_HasReachedBoard = true;
+
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
             if (Phase2Manager.IsPhase2Active)
