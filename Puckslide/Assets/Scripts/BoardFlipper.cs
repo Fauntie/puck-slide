@@ -214,5 +214,15 @@ public static class BoardFlipper
             puck.transform.Rotate(0f, 0f, 180f, Space.Self);
 
         }
+
+        // Pieces are implemented as flat sprites on pucks. When the camera flips
+        // to show the opposite player's perspective we need to rotate these
+        // sprites as well, otherwise the chess piece images appear upside down.
+        // Rotating each Piece by 180° keeps the artwork facing "up" relative to
+        // the camera just like we do for the pucks themselves.
+        foreach (Piece piece in Object.FindObjectsOfType<Piece>())
+        {
+            piece.transform.Rotate(0f, 0f, 180f, Space.Self);
+        }
     }
 }
