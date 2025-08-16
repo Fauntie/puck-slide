@@ -19,6 +19,6 @@ public class PuckFriction : MonoBehaviour
             m_Rigidbody.velocity = Vector2.zero;
         }
     }
-    
-    
+
+    public float Friction => m_Friction;
 }
