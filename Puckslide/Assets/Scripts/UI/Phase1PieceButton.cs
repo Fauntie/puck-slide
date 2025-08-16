@@ -49,7 +49,15 @@ public class Phase1PieceButton : MonoBehaviour
             return;
         }
 
-        PuckController puckController = Instantiate(m_PuckPrefab, m_PuckSpawnTransform.position, Quaternion.identity).GetComponent<PuckController>();
+        if (PuckController.IsWhiteTurn != m_IsWhite)
+        {
+            return;
+        }
+
+        float diameter = m_PuckPrefab.GetComponent<CircleCollider2D>().radius * 2f * m_PuckPrefab.transform.localScale.x;
+        Vector3 spawnPos = m_PuckSpawnTransform.position + m_PuckSpawnTransform.up * diameter;
+
+        PuckController puckController = Instantiate(m_PuckPrefab, spawnPos, Quaternion.identity).GetComponent<PuckController>();
         puckController.Init(m_ChessPieceType, m_IsSticky, m_IsWhite);
         m_PieceCount--;
         m_PieceCountText.text = $"X {m_PieceCount}";
