@@ -225,7 +225,9 @@ public class PuckController : MonoBehaviour
 
     private void OnMouseDown()
     {
+
         if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+
         {
             m_IsSelected = false;
             return;
@@ -397,7 +399,9 @@ public class PuckController : MonoBehaviour
 
         if (reachedBoard)
         {
+
             m_HasReachedBoard = true;
+
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
             if (Phase2Manager.IsPhase2Active)
