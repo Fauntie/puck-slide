@@ -47,9 +47,9 @@ public class PuckController : MonoBehaviour
     private static bool s_IsWhiteTurn = true;
     private bool m_IsSelected;
 
-
-    private float m_BoardEntryY;
-
+    // Entry lines for both sides of the board.
+    private float m_BottomEntryY;
+    private float m_TopEntryY;
 
     private Vector3 m_StartPosition;
 
@@ -95,21 +95,24 @@ public class PuckController : MonoBehaviour
         }
 
 
-        DetermineBoardEntryY();
+        UpdateBoardEntryLines();
         m_StartPosition = transform.position;
     }
 
-    private void DetermineBoardEntryY()
+    // Recalculate the entry lines at the top and bottom of the board.
+    public void UpdateBoardEntryLines()
     {
         Tile[] tiles = FindObjectsOfType<Tile>();
         if (tiles.Length == 0)
         {
             Debug.LogWarning("PuckController could not locate any tiles to determine board entry.", this);
-            m_BoardEntryY = 0f;
+            m_BottomEntryY = 0f;
+            m_TopEntryY = 0f;
             return;
         }
 
         float minY = tiles[0].transform.position.y;
+        float maxY = minY;
         float halfHeight = 0f;
         SpriteRenderer sr = tiles[0].GetComponent<SpriteRenderer>();
         if (sr != null)
@@ -128,22 +131,33 @@ public class PuckController : MonoBehaviour
             {
                 minY = y;
             }
+            if (y > maxY)
+            {
+                maxY = y;
+            }
         }
 
-        m_BoardEntryY = minY - halfHeight;
-
+        m_BottomEntryY = minY - halfHeight;
+        m_TopEntryY = maxY + halfHeight;
     }
 
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.AddListener(OnDelete);
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
         EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
     }
 
     private void OnDisable()
     {
         EventsManager.OnDeletePucks.RemoveListener(OnDelete);
+        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
         EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
+    }
+
+    private void OnTurnChanged(bool _)
+    {
+        UpdateBoardEntryLines();
     }
 
     private void OnDelete(bool delete)
@@ -370,7 +384,12 @@ public class PuckController : MonoBehaviour
     {
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
-        bool reachedBoard = transform.position.y >= m_BoardEntryY;
+
+        bool startedFromTop = m_StartPosition.y > m_TopEntryY;
+        bool reachedBoard = startedFromTop
+            ? transform.position.y <= m_TopEntryY
+            : transform.position.y >= m_BottomEntryY;
+
         if (reachedBoard)
         {
             s_IsWhiteTurn = !s_IsWhiteTurn;
