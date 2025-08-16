@@ -47,7 +47,9 @@ public class PuckController : MonoBehaviour
     private static bool s_IsWhiteTurn = true;
     private bool m_IsSelected;
 
+
     private float m_BoardEntryY;
+
 
     private Vector3 m_StartPosition;
 
@@ -92,6 +94,7 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.material = mat;
         }
 
+
         DetermineBoardEntryY();
         m_StartPosition = transform.position;
     }
@@ -128,6 +131,7 @@ public class PuckController : MonoBehaviour
         }
 
         m_BoardEntryY = minY - halfHeight;
+
     }
 
     private void OnEnable()
@@ -382,7 +386,9 @@ public class PuckController : MonoBehaviour
         }
         else
         {
+
             // Shot stopped before reaching the board—reset for another try
+
             m_Rigidbody.position = m_StartPosition;
             m_Rigidbody.velocity = Vector2.zero;
             m_Rigidbody.angularVelocity = 0f;
