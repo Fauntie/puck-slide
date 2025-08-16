@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
+[RequireComponent(typeof(LineRenderer))]
 public class PuckController : MonoBehaviour
 {
     [SerializeField]
@@ -50,6 +51,11 @@ public class PuckController : MonoBehaviour
     {
         m_Camera = Camera.main;
         m_Rigidbody.freezeRotation = true;
+        m_TrajectoryRenderer ??= GetComponent<LineRenderer>();
+        if (m_TrajectoryRenderer == null)
+        {
+            Debug.LogWarning("PuckController requires a LineRenderer component.", this);
+        }
         m_PuckFriction = GetComponent<PuckFriction>();
         m_Collider = GetComponent<CircleCollider2D>();
 
