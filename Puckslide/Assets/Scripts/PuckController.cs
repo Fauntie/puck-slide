@@ -48,6 +48,7 @@ public class PuckController : MonoBehaviour
     private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
+    private Collider2D m_BoardBounds;
     // Entry lines for both sides of the board.
     private float m_BottomEntryY;
     private float m_TopEntryY;
@@ -110,8 +111,10 @@ public class PuckController : MonoBehaviour
         Transform board = BoardFlipper.GetBoardTransform();
         if (board == null)
         {
+            m_BoardBounds = null;
             return;
         }
+        m_BoardBounds = board.GetComponentInChildren<Collider2D>();
         Tile[] tiles = board.GetComponentsInChildren<Tile>();
         if (tiles.Length == 0)
         {
@@ -174,6 +177,11 @@ public class PuckController : MonoBehaviour
     private void OnTurnChanged(bool _)
     {
         UpdateBoardEntryLines();
+        Transform board = BoardFlipper.GetBoardTransform();
+        if (board != null)
+        {
+            m_BoardBounds = board.GetComponentInChildren<Collider2D>();
+        }
     }
 
     private void OnDelete(bool delete)
@@ -404,7 +412,7 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        bool reachedBoard = transform.position.y >= m_BottomEntryY && transform.position.y <= m_TopEntryY;
+        bool reachedBoard = m_BoardBounds != null && m_BoardBounds.bounds.Contains(m_Rigidbody.worldCenterOfMass);
 
         if (reachedBoard)
         {
