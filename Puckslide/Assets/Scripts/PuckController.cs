@@ -22,23 +22,25 @@ public class PuckController : MonoBehaviour
     private Sprite[] m_Sprites;
 
     [SerializeField]
-    private float m_MaxDragDistance = 1.5f;
+    private float m_MaxDragMultiplier = 4f; // allowed pull distance in puck diameters
 
     [SerializeField]
-    private float m_ArrowHeadLength = 0.3f;
+    private int m_SlingSegments = 20;
 
     [SerializeField]
-    private float m_ArrowHeadWidth = 0.15f;
+    private float m_SlingSag = 0.2f;
 
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
 
     private PuckFriction m_PuckFriction;
+    private CircleCollider2D m_Collider;
+    private float m_MaxDragDistance;
 
     private bool m_IsSticky;
 
     private const float STOP_THRESHOLD = 0.05f;
-    private const float SHOOT_POWER = 4f;
+    private const float SHOOT_POWER = 3f;
     private static bool? s_LastMoveWasWhite = null;
     private bool m_IsSelected;
 
@@ -47,6 +49,13 @@ public class PuckController : MonoBehaviour
         m_Camera = Camera.main;
         m_Rigidbody.freezeRotation = true;
         m_PuckFriction = GetComponent<PuckFriction>();
+        m_Collider = GetComponent<CircleCollider2D>();
+
+        if (m_Collider != null)
+        {
+            float diameter = m_Collider.radius * 2f * transform.localScale.x;
+            m_MaxDragDistance = diameter * m_MaxDragMultiplier;
+        }
 
         if (m_TrajectoryRenderer != null)
         {
@@ -157,10 +166,10 @@ public class PuckController : MonoBehaviour
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
-            m_LineRenderer.positionCount = 5;
+            m_LineRenderer.positionCount = m_SlingSegments;
             Vector3 start = transform.position;
             start.z = 0;
-            for (int i = 0; i < m_LineRenderer.positionCount; i++)
+            for (int i = 0; i < m_SlingSegments; i++)
             {
                 m_LineRenderer.SetPosition(i, start);
             }
@@ -196,25 +205,20 @@ public class PuckController : MonoBehaviour
             Vector3 clampedOffset = Vector3.ClampMagnitude(offset, m_MaxDragDistance);
             Vector3 endPos = puckCenter + clampedOffset;
 
-            m_LineRenderer.SetPosition(0, endPos);
-            m_LineRenderer.SetPosition(1, puckCenter);
-
             float powerRatio = clampedOffset.magnitude / m_MaxDragDistance;
             Color powerColor = Color.Lerp(Color.green, Color.red, powerRatio);
             m_LineRenderer.startColor = powerColor;
             m_LineRenderer.endColor = powerColor;
 
-            if (clampedOffset.sqrMagnitude > 0.0001f)
+            Vector3 direction = (puckCenter - endPos).normalized;
+            Vector3 perp = new Vector3(-direction.y, direction.x, 0f);
+            for (int i = 0; i < m_SlingSegments; i++)
             {
-                Vector3 direction = (puckCenter - endPos).normalized;
-                Vector3 perp = new Vector3(-direction.y, direction.x, 0f);
-                Vector3 arrowBase = puckCenter - direction * m_ArrowHeadLength;
-                Vector3 left = arrowBase + perp * m_ArrowHeadWidth * 0.5f;
-                Vector3 right = arrowBase - perp * m_ArrowHeadWidth * 0.5f;
-
-                m_LineRenderer.SetPosition(2, left);
-                m_LineRenderer.SetPosition(3, puckCenter);
-                m_LineRenderer.SetPosition(4, right);
+                float t = i / (m_SlingSegments - 1f);
+                Vector3 point = Vector3.Lerp(endPos, puckCenter, t);
+                float sagAmount = m_SlingSag * Mathf.Sin(Mathf.PI * t) * clampedOffset.magnitude;
+                point += perp * sagAmount;
+                m_LineRenderer.SetPosition(i, point);
             }
 
             Vector3 dragVector = -clampedOffset;
