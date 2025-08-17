@@ -3,6 +3,7 @@ using UnityEngine;
 
 public static class BoardFlipper
 {
+    // Fired once the board transform and size have been configured.
     public static event Action OnBoardSet;
 
     private static bool s_IsFlipped = false;
@@ -23,6 +24,7 @@ public static class BoardFlipper
         s_TileSize = tileSize;
 
         RecalculateBoardCenter();
+        // Inform any listeners that the board is ready for use.
         OnBoardSet?.Invoke();
     }
 
