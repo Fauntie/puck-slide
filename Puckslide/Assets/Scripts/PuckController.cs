@@ -186,6 +186,7 @@ public class PuckController : MonoBehaviour
     {
         EventsManager.OnDeletePucks.AddListener(OnDelete);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        // Update our cached board bounds whenever a new board becomes available.
         BoardFlipper.OnBoardSet += UpdateBoardEntryLines;
         EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
     }
