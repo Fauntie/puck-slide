@@ -48,7 +48,8 @@ public class PuckController : MonoBehaviour
     private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
-    private Collider2D m_BoardBounds;
+    private Bounds m_BoardBounds;
+    private bool m_BoardBoundsValid;
     // Entry lines for both sides of the board.
     private float m_BottomEntryY;
     private float m_TopEntryY;
@@ -111,47 +112,70 @@ public class PuckController : MonoBehaviour
         Transform board = BoardFlipper.GetBoardTransform();
         if (board == null)
         {
-            m_BoardBounds = null;
+            m_BoardBoundsValid = false;
             return;
         }
-        m_BoardBounds = board.GetComponentInChildren<Collider2D>();
+
         Tile[] tiles = board.GetComponentsInChildren<Tile>();
         if (tiles.Length == 0)
         {
             Debug.LogWarning("PuckController could not locate any board tiles to determine board entry.", this);
+            m_BoardBoundsValid = false;
             m_BottomEntryY = 0f;
             m_TopEntryY = 0f;
             return;
         }
 
-        float minY = tiles[0].transform.position.y;
-        float maxY = minY;
-        float halfHeight = 0f;
+        Vector3 firstPos = tiles[0].transform.position;
+        float minX = firstPos.x;
+        float maxX = firstPos.x;
+        float minY = firstPos.y;
+        float maxY = firstPos.y;
+
+        float halfWidth;
+        float halfHeight;
         SpriteRenderer sr = tiles[0].GetComponent<SpriteRenderer>();
         if (sr != null)
         {
+            halfWidth = sr.bounds.extents.x;
             halfHeight = sr.bounds.extents.y;
         }
         else
         {
-            halfHeight = tiles[0].transform.localScale.y * 0.5f;
+            Vector3 scale = tiles[0].transform.localScale;
+            halfWidth = scale.x * 0.5f;
+            halfHeight = scale.y * 0.5f;
         }
 
         for (int i = 1; i < tiles.Length; i++)
         {
-            float y = tiles[i].transform.position.y;
-            if (y < minY)
+            Vector3 pos = tiles[i].transform.position;
+            if (pos.x < minX)
             {
-                minY = y;
+                minX = pos.x;
             }
-            if (y > maxY)
+            if (pos.x > maxX)
             {
-                maxY = y;
+                maxX = pos.x;
+            }
+            if (pos.y < minY)
+            {
+                minY = pos.y;
+            }
+            if (pos.y > maxY)
+            {
+                maxY = pos.y;
             }
         }
 
         m_BottomEntryY = minY - halfHeight;
         m_TopEntryY = maxY + halfHeight;
+
+        Vector3 min = new Vector3(minX - halfWidth, minY - halfHeight, 0f);
+        Vector3 max = new Vector3(maxX + halfWidth, maxY + halfHeight, 0f);
+        m_BoardBounds = new Bounds();
+        m_BoardBounds.SetMinMax(min, max);
+        m_BoardBoundsValid = true;
     }
 
     private void OnEnable()
@@ -177,11 +201,6 @@ public class PuckController : MonoBehaviour
     private void OnTurnChanged(bool _)
     {
         UpdateBoardEntryLines();
-        Transform board = BoardFlipper.GetBoardTransform();
-        if (board != null)
-        {
-            m_BoardBounds = board.GetComponentInChildren<Collider2D>();
-        }
     }
 
     private void OnDelete(bool delete)
@@ -412,7 +431,8 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        bool reachedBoard = m_BoardBounds != null && m_BoardBounds.bounds.Contains(m_Rigidbody.worldCenterOfMass);
+        Vector2 com = m_Rigidbody.worldCenterOfMass;
+        bool reachedBoard = m_BoardBoundsValid && m_BoardBounds.Contains(new Vector3(com.x, com.y, 0f));
 
         if (reachedBoard)
         {
