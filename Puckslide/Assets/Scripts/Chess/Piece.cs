@@ -45,6 +45,6 @@ public class Piece : MonoBehaviour
 
     public bool IsPawn()
     {
-        return m_ChessPiece is ChessPiece.B_Pawn or ChessPiece.W_Pawn;
+        return m_ChessPiece == ChessPiece.B_Pawn || m_ChessPiece == ChessPiece.W_Pawn;
     }
 }
