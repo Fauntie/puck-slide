@@ -124,7 +124,7 @@ public static class BoardFlipper
         // Update the cached centre again now that the board has been moved.
         RecalculateBoardCenter();
 
-        foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
+        foreach (PuckController puck in UnityEngine.Object.FindObjectsOfType<PuckController>())
         {
             if (!puck.transform.IsChildOf(s_BoardTransform))
             {
@@ -149,7 +149,7 @@ public static class BoardFlipper
             }
         }
 
-        foreach (Piece piece in Object.FindObjectsOfType<Piece>())
+        foreach (Piece piece in UnityEngine.Object.FindObjectsOfType<Piece>())
         {
             if (!piece.transform.IsChildOf(s_BoardTransform))
             {
@@ -209,7 +209,7 @@ public static class BoardFlipper
         // camera is flipped. Rotating them by 180° each time we flip the camera
         // preserves their original orientation without relying on a hardcoded
         // absolute rotation.
-        foreach (PuckController puck in Object.FindObjectsOfType<PuckController>())
+        foreach (PuckController puck in UnityEngine.Object.FindObjectsOfType<PuckController>())
         {
             puck.transform.Rotate(0f, 0f, 180f, Space.Self);
 
@@ -220,7 +220,7 @@ public static class BoardFlipper
         // sprites as well, otherwise the chess piece images appear upside down.
         // Rotating each Piece by 180° keeps the artwork facing "up" relative to
         // the camera just like we do for the pucks themselves.
-        foreach (Piece piece in Object.FindObjectsOfType<Piece>())
+        foreach (Piece piece in UnityEngine.Object.FindObjectsOfType<Piece>())
         {
             piece.transform.Rotate(0f, 0f, 180f, Space.Self);
         }
