@@ -71,6 +71,8 @@
     <Compile Include="Assets\Scripts\Util\EventsManager.cs" />
     <Compile Include="Assets\Scripts\OneWayWall.cs" />
     <Compile Include="Assets\Scripts\Chess\PromotionPanel.cs" />
+    <Compile Include="Assets\Scripts\BoardFlipper.cs" />
+    <Compile Include="Assets\Scripts\UI\TurnIndicator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\TextMesh Pro\Shaders\TMPro.cginc" />
