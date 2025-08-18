@@ -82,15 +82,22 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
 
-            var dashTex = new Texture2D(2, 1, TextureFormat.ARGB32, false);
-            dashTex.SetPixels(new[] { Color.white, new Color(1f, 1f, 1f, 0f) });
-            dashTex.filterMode = FilterMode.Point;
-            dashTex.wrapMode = TextureWrapMode.Repeat;
-            dashTex.Apply();
+            var dotTex = new Texture2D(8, 1, TextureFormat.ARGB32, false);
+            var pixels = new Color[8];
+            pixels[0] = Color.white;
+            for (int i = 1; i < pixels.Length; i++)
+            {
+                pixels[i] = new Color(1f, 1f, 1f, 0f);
+            }
+            dotTex.SetPixels(pixels);
+            dotTex.filterMode = FilterMode.Point;
+            dotTex.wrapMode = TextureWrapMode.Repeat;
+            dotTex.Apply();
 
-            var dashedMat = new Material(Shader.Find("Sprites/Default"));
-            dashedMat.mainTexture = dashTex;
-            m_TrajectoryRenderer.material = dashedMat;
+            var dottedMat = new Material(Shader.Find("Sprites/Default"));
+            dottedMat.mainTexture = dotTex;
+            m_TrajectoryRenderer.material = dottedMat;
+            m_TrajectoryRenderer.material.mainTextureScale = new Vector2(8f, 1f);
         }
 
 
