@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-[RequireComponent(typeof(LineRenderer))]
 public class PuckController : MonoBehaviour
 {
     [SerializeField]
@@ -83,17 +82,15 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
 
-            Texture2D tex = new Texture2D(2, 1);
-            tex.SetPixel(0, 0, Color.white);
-            tex.SetPixel(1, 0, Color.clear);
-            tex.filterMode = FilterMode.Point;
-            tex.wrapMode = TextureWrapMode.Repeat;
-            tex.Apply();
+            var dashTex = new Texture2D(2, 1, TextureFormat.ARGB32, false);
+            dashTex.SetPixels(new[] { Color.white, new Color(1f, 1f, 1f, 0f) });
+            dashTex.filterMode = FilterMode.Point;
+            dashTex.wrapMode = TextureWrapMode.Repeat;
+            dashTex.Apply();
 
-            Material mat = new Material(Shader.Find("Sprites/Default"));
-            mat.mainTexture = tex;
-            mat.mainTextureScale = new Vector2(10f, 1f);
-            m_TrajectoryRenderer.material = mat;
+            var dashedMat = new Material(Shader.Find("Sprites/Default"));
+            dashedMat.mainTexture = dashTex;
+            m_TrajectoryRenderer.material = dashedMat;
         }
 
 
