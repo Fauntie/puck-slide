@@ -82,13 +82,15 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
 
-            var dotTex = new Texture2D(8, 1, TextureFormat.ARGB32, false);
-            var pixels = new Color[8];
-            pixels[0] = Color.white;
-            for (int i = 1; i < pixels.Length; i++)
+            // Create a small two-pixel texture where one pixel is opaque and
+            // the next is transparent. When tiled along the line this produces
+            // a densely dotted pattern instead of widely spaced dots.
+            var dotTex = new Texture2D(2, 1, TextureFormat.ARGB32, false);
+            var pixels = new[]
             {
-                pixels[i] = new Color(1f, 1f, 1f, 0f);
-            }
+                Color.white,
+                new Color(1f, 1f, 1f, 0f)
+            };
             dotTex.SetPixels(pixels);
             dotTex.filterMode = FilterMode.Point;
             dotTex.wrapMode = TextureWrapMode.Repeat;
@@ -97,7 +99,10 @@ public class PuckController : MonoBehaviour
             var dottedMat = new Material(Shader.Find("Sprites/Default"));
             dottedMat.mainTexture = dotTex;
             m_TrajectoryRenderer.material = dottedMat;
-            m_TrajectoryRenderer.material.mainTextureScale = new Vector2(8f, 1f);
+            // Reduce the texture scale so the two-pixel pattern tiles more
+            // frequently along the line, giving the appearance of many closely
+            // spaced dots.
+            m_TrajectoryRenderer.material.mainTextureScale = new Vector2(2f, 1f);
         }
 
 
