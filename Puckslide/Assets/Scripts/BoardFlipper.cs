@@ -19,12 +19,42 @@ public static class BoardFlipper
         s_GridSize = gridSize;
         s_TileSize = tileSize;
 
+        EnsureBoardTrigger();
+
         RecalculateBoardCenter();
     }
 
     public static void SetFlipOffset(Vector3 offset)
     {
         s_FlipOffset = offset;
+    }
+
+    private static void EnsureBoardTrigger()
+    {
+        if (s_BoardTransform == null)
+        {
+            return;
+        }
+
+        const string triggerName = "BoardTrigger";
+        Transform triggerTransform = s_BoardTransform.Find(triggerName);
+        if (triggerTransform == null)
+        {
+            GameObject triggerObj = new GameObject(triggerName);
+            triggerObj.transform.SetParent(s_BoardTransform, false);
+            triggerTransform = triggerObj.transform;
+        }
+
+        triggerTransform.localPosition = new Vector3((s_GridSize - 1) * s_TileSize * 0.5f, (s_GridSize - 1) * s_TileSize * 0.5f, 0f);
+
+        BoxCollider2D collider = triggerTransform.GetComponent<BoxCollider2D>();
+        if (collider == null)
+        {
+            collider = triggerTransform.gameObject.AddComponent<BoxCollider2D>();
+        }
+
+        collider.isTrigger = true;
+        collider.size = new Vector2(s_GridSize * s_TileSize, s_GridSize * s_TileSize);
     }
 
     private static void RecalculateBoardCenter()

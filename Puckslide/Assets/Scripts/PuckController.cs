@@ -395,13 +395,8 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        bool reachedBoard = transform.position.y >= m_BottomEntryY && transform.position.y <= m_TopEntryY;
-
-        if (reachedBoard)
+        if (m_HasReachedBoard)
         {
-
-            m_HasReachedBoard = true;
-
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
             if (Phase2Manager.IsPhase2Active)
@@ -422,6 +417,15 @@ public class PuckController : MonoBehaviour
             m_Rigidbody.velocity = Vector2.zero;
             m_Rigidbody.angularVelocity = 0f;
             transform.rotation = Quaternion.identity;
+            m_HasReachedBoard = false;
+        }
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (other.gameObject.name == "BoardTrigger")
+        {
+            m_HasReachedBoard = true;
         }
     }
 
