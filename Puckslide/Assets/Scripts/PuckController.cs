@@ -54,6 +54,9 @@ public class PuckController : MonoBehaviour
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
 
+    private float m_TileSize;
+    private Vector2 m_GridOrigin;
+
     private void Awake()
     {
         m_Camera = Camera.main;
@@ -404,6 +407,23 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
+        if ((ChessPiece == ChessPiece.W_Pawn || ChessPiece == ChessPiece.B_Pawn) && m_TileSize > 0f)
+        {
+            int gridY = Mathf.FloorToInt((transform.position.y - m_GridOrigin.y) / m_TileSize);
+            if ((ChessPiece == ChessPiece.W_Pawn && gridY > 3) ||
+                (ChessPiece == ChessPiece.B_Pawn && gridY < 4))
+            {
+                // Shot ended outside the allowed half—reset for another try
+                m_Rigidbody.position = m_StartPosition;
+                transform.position = m_StartPosition;
+                m_Rigidbody.velocity = Vector2.zero;
+                m_Rigidbody.angularVelocity = 0f;
+                transform.rotation = Quaternion.identity;
+                m_HasReachedBoard = false;
+                yield break;
+            }
+        }
+
         if (m_HasReachedBoard)
         {
             s_ActivePuck = null;
@@ -453,6 +473,10 @@ public class PuckController : MonoBehaviour
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
     {
+        // Cache grid info for later use
+        m_TileSize = tileSize;
+        m_GridOrigin = gridOrigin;
+
         // Calculate the current grid position based on the puck's position
         Vector2 worldPosition = transform.position;
 
@@ -461,21 +485,43 @@ public class PuckController : MonoBehaviour
 
         if (gridX < 0 || gridX > 7 || gridY < 0 || gridY > 7)
         {
-            CurrentGridPosition = new Vector2Int(-1,-1);
+            CurrentGridPosition = new Vector2Int(-1, -1);
         }
         else
         {
+            if (ChessPiece == ChessPiece.W_Pawn && gridY > 3)
+            {
+                gridY = 3;
+            }
+            else if (ChessPiece == ChessPiece.B_Pawn && gridY < 4)
+            {
+                gridY = 4;
+            }
+
             CurrentGridPosition = new Vector2Int(gridX, gridY);
         }
     }
 
     public void SnapToGrid(float tileSize, Vector2 gridOrigin)
     {
+        // Cache grid info for later use
+        m_TileSize = tileSize;
+        m_GridOrigin = gridOrigin;
+
         Vector2 worldPosition = transform.position;
-        
+
         int gridX = Mathf.FloorToInt((worldPosition.x - gridOrigin.x) / tileSize);
         int gridY = Mathf.FloorToInt((worldPosition.y - gridOrigin.y) / tileSize);
-        
+
+        if (ChessPiece == ChessPiece.W_Pawn && gridY > 3)
+        {
+            gridY = 3;
+        }
+        else if (ChessPiece == ChessPiece.B_Pawn && gridY < 4)
+        {
+            gridY = 4;
+        }
+
         // The center of tile (gridX, gridY):
         float centerX = gridOrigin.x + (gridX + 0.5f) * tileSize;
         float centerY = gridOrigin.y + (gridY + 0.5f) * tileSize;
