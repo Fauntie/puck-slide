@@ -30,7 +30,7 @@ public class TurnIndicator : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged);
     }
 
     private void OnDisable()
