@@ -50,6 +50,7 @@ public class PuckController : MonoBehaviour
     // Entry lines for both sides of the board.
     private float m_BottomEntryY;
     private float m_TopEntryY;
+    private float m_HalfBoardY;
 
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
@@ -120,6 +121,7 @@ public class PuckController : MonoBehaviour
             Debug.LogWarning("PuckController could not locate any board tiles to determine board entry.", this);
             m_BottomEntryY = 0f;
             m_TopEntryY = 0f;
+            m_HalfBoardY = 0f;
             return;
         }
 
@@ -151,6 +153,7 @@ public class PuckController : MonoBehaviour
 
         m_BottomEntryY = minY - halfHeight;
         m_TopEntryY = maxY + halfHeight;
+        m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
     }
 
     private void OnEnable()
@@ -191,6 +194,24 @@ public class PuckController : MonoBehaviour
             if (m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD)
             {
                 m_Rigidbody.bodyType = RigidbodyType2D.Static;
+            }
+        }
+    }
+
+    private void FixedUpdate()
+    {
+        // Keep pawns on their starting side during phase 1.
+        if (!Phase2Manager.IsPhase2Active &&
+            (ChessPiece == ChessPiece.W_Pawn || ChessPiece == ChessPiece.B_Pawn))
+        {
+            if (m_Rigidbody.position.y > m_HalfBoardY && m_Rigidbody.velocity.y > 0f)
+            {
+                Vector2 pos = m_Rigidbody.position;
+                pos.y = m_HalfBoardY;
+                m_Rigidbody.position = pos;
+                Vector2 vel = m_Rigidbody.velocity;
+                vel.y = -vel.y;      // mirror far-wall bounce
+                m_Rigidbody.velocity = vel;
             }
         }
     }
