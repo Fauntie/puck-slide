@@ -115,7 +115,28 @@ public class PuckController : MonoBehaviour
     public void UpdateBoardEntryLines()
     {
         Transform board = BoardFlipper.GetBoardTransform();
-        Tile[] tiles = board != null ? board.GetComponentsInChildren<Tile>() : Array.Empty<Tile>();
+        if (board == null)
+        {
+            m_BottomEntryY = 0f;
+            m_TopEntryY = 0f;
+            m_HalfBoardY = 0f;
+            return;
+        }
+
+        // Prefer the BoardTrigger collider to avoid including launch-area tiles
+        // when calculating the board bounds.
+        Transform trigger = board.Find("BoardTrigger");
+        if (trigger != null && trigger.TryGetComponent(out BoxCollider2D box))
+        {
+            Bounds bounds = box.bounds;
+            m_BottomEntryY = bounds.min.y;
+            m_TopEntryY = bounds.max.y;
+            m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
+            return;
+        }
+
+        // Fallback to scanning tile positions.
+        Tile[] tiles = board.GetComponentsInChildren<Tile>();
         if (tiles.Length == 0)
         {
             Debug.LogWarning("PuckController could not locate any board tiles to determine board entry.", this);
@@ -127,7 +148,7 @@ public class PuckController : MonoBehaviour
 
         float minY = tiles[0].transform.position.y;
         float maxY = minY;
-        float halfHeight = 0f;
+        float halfHeight;
         SpriteRenderer sr = tiles[0].GetComponent<SpriteRenderer>();
         if (sr != null)
         {
@@ -200,8 +221,10 @@ public class PuckController : MonoBehaviour
 
     private void FixedUpdate()
     {
-        // Keep pawns on their starting side during phase 1.
-        if (!Phase2Manager.IsPhase2Active &&
+
+        // Keep pawns on their starting side during phase 1 once they reach the board.
+        if (m_HasReachedBoard && !Phase2Manager.IsPhase2Active &&
+
             (ChessPiece == ChessPiece.W_Pawn || ChessPiece == ChessPiece.B_Pawn))
         {
             if (m_Rigidbody.position.y > m_HalfBoardY && m_Rigidbody.velocity.y > 0f)
