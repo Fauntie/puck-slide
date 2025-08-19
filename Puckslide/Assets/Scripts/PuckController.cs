@@ -51,6 +51,8 @@ public class PuckController : MonoBehaviour
     private float m_BottomEntryY;
     private float m_TopEntryY;
     private float m_HalfBoardY;
+    private float m_LeftWallX;
+    private float m_RightWallX;
 
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
@@ -120,6 +122,8 @@ public class PuckController : MonoBehaviour
             m_BottomEntryY = 0f;
             m_TopEntryY = 0f;
             m_HalfBoardY = 0f;
+            m_LeftWallX = 0f;
+            m_RightWallX = 0f;
             return;
         }
 
@@ -129,9 +133,12 @@ public class PuckController : MonoBehaviour
         if (trigger != null && trigger.TryGetComponent(out BoxCollider2D box))
         {
             Bounds bounds = box.bounds;
+            float radius = m_Collider != null ? m_Collider.bounds.extents.x : 0f;
             m_BottomEntryY = bounds.min.y;
             m_TopEntryY = bounds.max.y;
             m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
+            m_LeftWallX = bounds.min.x + radius;
+            m_RightWallX = bounds.max.x - radius;
             return;
         }
 
@@ -143,25 +150,34 @@ public class PuckController : MonoBehaviour
             m_BottomEntryY = 0f;
             m_TopEntryY = 0f;
             m_HalfBoardY = 0f;
+            m_LeftWallX = 0f;
+            m_RightWallX = 0f;
             return;
         }
 
         float minY = tiles[0].transform.position.y;
         float maxY = minY;
+        float minX = tiles[0].transform.position.x;
+        float maxX = minX;
         float halfHeight;
+        float halfWidth;
         SpriteRenderer sr = tiles[0].GetComponent<SpriteRenderer>();
         if (sr != null)
         {
             halfHeight = sr.bounds.extents.y;
+            halfWidth = sr.bounds.extents.x;
         }
         else
         {
-            halfHeight = tiles[0].transform.localScale.y * 0.5f;
+            Vector3 scale = tiles[0].transform.localScale;
+            halfHeight = scale.y * 0.5f;
+            halfWidth = scale.x * 0.5f;
         }
 
         for (int i = 1; i < tiles.Length; i++)
         {
-            float y = tiles[i].transform.position.y;
+            Vector3 pos = tiles[i].transform.position;
+            float y = pos.y;
             if (y < minY)
             {
                 minY = y;
@@ -170,11 +186,23 @@ public class PuckController : MonoBehaviour
             {
                 maxY = y;
             }
+            float x = pos.x;
+            if (x < minX)
+            {
+                minX = x;
+            }
+            if (x > maxX)
+            {
+                maxX = x;
+            }
         }
 
+        float radius = m_Collider != null ? m_Collider.bounds.extents.x : 0f;
         m_BottomEntryY = minY - halfHeight;
         m_TopEntryY = maxY + halfHeight;
         m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
+        m_LeftWallX = minX - halfWidth + radius;
+        m_RightWallX = maxX + halfWidth - radius;
     }
 
     private void OnEnable()
@@ -419,6 +447,16 @@ public class PuckController : MonoBehaviour
         for (int i = 1; i <= steps; i++)
         {
             position += velocity * timeStep;
+            if (position.x < m_LeftWallX)
+            {
+                position.x = m_LeftWallX + (m_LeftWallX - position.x);
+                velocity.x = -velocity.x;
+            }
+            else if (position.x > m_RightWallX)
+            {
+                position.x = m_RightWallX - (position.x - m_RightWallX);
+                velocity.x = -velocity.x;
+            }
             m_TrajectoryRenderer.SetPosition(i, new Vector3(position.x, position.y, 0f));
             velocity *= friction;
         }
