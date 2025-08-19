@@ -127,8 +127,6 @@ public class PuckController : MonoBehaviour
             return;
         }
 
-        float puckRadius = m_Collider != null ? m_Collider.bounds.extents.x : 0f;
-
         // Prefer the BoardTrigger collider to avoid including launch-area tiles
         // when calculating the board bounds.
         Transform trigger = board.Find("BoardTrigger");
@@ -139,10 +137,8 @@ public class PuckController : MonoBehaviour
             m_BottomEntryY = bounds.min.y;
             m_TopEntryY = bounds.max.y;
             m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
-
-            m_LeftWallX = bounds.min.x + puckRadius;
-            m_RightWallX = bounds.max.x - puckRadius;
-
+            m_LeftWallX = bounds.min.x + radius;
+            m_RightWallX = bounds.max.x - radius;
             return;
         }
 
@@ -205,10 +201,8 @@ public class PuckController : MonoBehaviour
         m_BottomEntryY = minY - halfHeight;
         m_TopEntryY = maxY + halfHeight;
         m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
-
-        m_LeftWallX = minX - halfWidth + puckRadius;
-        m_RightWallX = maxX + halfWidth - puckRadius;
-
+        m_LeftWallX = minX - halfWidth + radius;
+        m_RightWallX = maxX + halfWidth - radius;
     }
 
     private void OnEnable()
