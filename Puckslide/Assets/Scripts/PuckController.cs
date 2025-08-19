@@ -221,8 +221,10 @@ public class PuckController : MonoBehaviour
 
     private void FixedUpdate()
     {
+
         // Keep pawns on their starting side during phase 1 once they reach the board.
         if (m_HasReachedBoard && !Phase2Manager.IsPhase2Active &&
+
             (ChessPiece == ChessPiece.W_Pawn || ChessPiece == ChessPiece.B_Pawn))
         {
             if (m_Rigidbody.position.y > m_HalfBoardY && m_Rigidbody.velocity.y > 0f)
