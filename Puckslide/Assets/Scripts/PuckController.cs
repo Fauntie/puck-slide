@@ -489,7 +489,10 @@ public class PuckController : MonoBehaviour
             m_HasReachedBoard = false;
         }
 
-        m_GridManager?.UpdatePieceLayout();
+        // Rebuild the board layout without altering puck positions so pucks
+        // remain exactly where they stopped. Snapping to grid now happens only
+        // when triggered explicitly (e.g. via the snap button).
+        m_GridManager?.UpdatePieceLayoutWithoutSnap();
     }
 
     private void OnTriggerEnter2D(Collider2D other)
