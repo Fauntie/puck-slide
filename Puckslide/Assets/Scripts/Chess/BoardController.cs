@@ -84,6 +84,10 @@ public class BoardController : MonoBehaviour
     private void OnTurnChanged(bool _)
     {
         ClearHighlights();
+        if (m_SelectedPiece != null)
+        {
+            HighlightMoves(m_SelectedPiece);
+        }
     }
 
     private void OnBoardLayout(Dictionary<Vector2Int, ChessPiece> layout)
