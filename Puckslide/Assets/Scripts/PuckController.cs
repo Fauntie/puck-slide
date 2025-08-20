@@ -43,7 +43,6 @@ public class PuckController : MonoBehaviour
 
     [SerializeField]
     private float m_MaxLineWidth = 0.3f;
-    private static bool s_IsWhiteTurn = true;
     private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
@@ -279,7 +278,7 @@ public class PuckController : MonoBehaviour
     private void OnMouseDown()
     {
 
-        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+        if (IsWhitePiece != EventsManager.IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
 
         {
             m_IsSelected = false;
@@ -451,16 +450,7 @@ public class PuckController : MonoBehaviour
         if (m_HasReachedBoard)
         {
             s_ActivePuck = null;
-            s_IsWhiteTurn = !s_IsWhiteTurn;
-            if (Phase2Manager.IsPhase2Active)
-            {
-                BoardFlipper.FlipCamera();
-            }
-            else
-            {
-                BoardFlipper.Flip();
-            }
-            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+            EventsManager.ToggleTurn();
         }
         else
         {
@@ -486,14 +476,6 @@ public class PuckController : MonoBehaviour
     public ChessPiece ChessPiece { get; private set; }
 
     public bool IsWhitePiece => (int)ChessPiece >= 6;
-
-    public static bool IsWhiteTurn => s_IsWhiteTurn;
-
-    public static void ResetTurnOrder()
-    {
-        s_IsWhiteTurn = true; // Start with white's turn
-        EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
-    }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
     {

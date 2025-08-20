@@ -49,7 +49,7 @@ public class Phase1PieceButton : MonoBehaviour
             return;
         }
 
-        if (PuckController.IsWhiteTurn != m_IsWhite)
+        if (EventsManager.IsWhiteTurn != m_IsWhite)
         {
             return;
         }

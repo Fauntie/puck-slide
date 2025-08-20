@@ -27,7 +27,6 @@ public class BoardController : MonoBehaviour
     private Piece m_SelectedPiece;
     private Vector3 m_Offset;
     private Tile m_OriginalTile;
-    private bool? m_LastMoveWasWhite = null;
 
     private struct Move
     {
@@ -55,7 +54,6 @@ public class BoardController : MonoBehaviour
         }
         
         EventsManager.OnBoardLayout.AddListener(OnBoardLayout, true);
-        m_LastMoveWasWhite = null;
     }
     
     private void OnDisable()
@@ -145,7 +143,7 @@ public class BoardController : MonoBehaviour
             }
 
             // If we found a piece, check turn and "pick it up"
-            if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
+            if (topmostPiece != null && topmostPiece.IsWhite() == EventsManager.IsWhiteTurn)
             {
                 m_SelectedPiece = topmostPiece;
                 m_OriginalTile = m_SelectedPiece.GetCurrentTile();
@@ -232,12 +230,11 @@ public class BoardController : MonoBehaviour
                         PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
                     }
 
-                    m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
-                    BoardFlipper.FlipCamera();
+                    EventsManager.ToggleTurn();
                     moveMade = true;
 
                     // Evaluate opponent's state
-                    EvaluateGameState(!m_LastMoveWasWhite.Value);
+                    EvaluateGameState(EventsManager.IsWhiteTurn);
                 }
             }
 
