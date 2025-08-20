@@ -63,6 +63,32 @@ public class GridManager : MonoBehaviour
         EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
     }
 
+    // Rebuild the board layout without altering puck positions.
+    public void UpdatePieceLayoutWithoutSnap()
+    {
+        m_PieceLayout.Clear();
+
+        // Find all pucks in the scene
+        PuckController[] pucks = FindObjectsOfType<PuckController>();
+
+        foreach (PuckController puck in pucks)
+        {
+            // Update each puck's grid position based on its current location
+            puck.UpdateGridPosition(m_TileSize, m_GridOrigin);
+
+            if (puck.CurrentGridPosition != new Vector2Int(-1, -1))
+            {
+                if (m_PieceLayout.ContainsKey(puck.CurrentGridPosition))
+                {
+                    Debug.LogWarning($"Duplicate piece at {puck.CurrentGridPosition} replaced.");
+                }
+                m_PieceLayout[puck.CurrentGridPosition] = puck.ChessPiece;
+            }
+        }
+
+        EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
+    }
+
     void OnDrawGizmos()
     {
         // Draw the grid in the scene view for debugging

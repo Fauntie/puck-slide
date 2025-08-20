@@ -330,7 +330,9 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
         }
-        m_GridManager?.UpdatePieceLayout();
+        // Update layout without snapping pieces to the grid so the selected
+        // puck doesn't move when highlighted.
+        m_GridManager?.UpdatePieceLayoutWithoutSnap();
         HighlightLegalMoves();
     }
 
