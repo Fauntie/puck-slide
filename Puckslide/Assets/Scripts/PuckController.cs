@@ -86,8 +86,8 @@ public class PuckController : MonoBehaviour
         if (m_TrajectoryRenderer != null)
         {
             m_TrajectoryRenderer.enabled = false;
-            m_TrajectoryRenderer.startColor = Color.red;
-            m_TrajectoryRenderer.endColor = Color.red;
+            m_TrajectoryRenderer.startColor = Color.blue;
+            m_TrajectoryRenderer.endColor = Color.blue;
             m_TrajectoryRenderer.textureMode = LineTextureMode.Tile;
             m_TrajectoryRenderer.positionCount = 0;
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
