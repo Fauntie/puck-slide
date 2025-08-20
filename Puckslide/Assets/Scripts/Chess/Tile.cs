@@ -6,6 +6,11 @@ public class Tile : MonoBehaviour
 {
     [SerializeField]
     private int m_Row;
+
+    [SerializeField]
+    private SpriteRenderer m_SpriteRenderer;
+
+    private Color m_DefaultColor;
     
     private Piece m_CurrentPiece;
 
@@ -32,5 +37,29 @@ public class Tile : MonoBehaviour
     public int GetRow()
     {
         return m_Row;
+    }
+
+    private void Awake()
+    {
+        if (m_SpriteRenderer != null)
+        {
+            m_DefaultColor = m_SpriteRenderer.color;
+        }
+    }
+
+    public void Highlight(Color color)
+    {
+        if (m_SpriteRenderer != null)
+        {
+            m_SpriteRenderer.color = color;
+        }
+    }
+
+    public void ClearHighlight()
+    {
+        if (m_SpriteRenderer != null)
+        {
+            m_SpriteRenderer.color = m_DefaultColor;
+        }
     }
 }

@@ -29,6 +29,13 @@ public class BoardController : MonoBehaviour
     private Tile m_OriginalTile;
     private bool? m_LastMoveWasWhite = null;
 
+    private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
+    private bool m_IsDragging = false;
+    private bool m_MouseDownOnPiece = false;
+    private Vector3 m_MouseDownPos;
+    private Tile m_WhiteCheckTile;
+    private Tile m_BlackCheckTile;
+
     private struct Move
     {
         public Tile From;
@@ -119,13 +126,13 @@ public class BoardController : MonoBehaviour
 
     private void Update()
     {
-        // 1) Mouse down
+        // Mouse down: select piece or handle deselection
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            m_MouseDownPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            m_MouseDownOnPiece = false;
 
-            // Collect everything under the mouse
-            RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
+            RaycastHit2D[] hits = Physics2D.RaycastAll(m_MouseDownPos, Vector2.zero);
 
             Piece topmostPiece = null;
             int topSortingOrder = int.MinValue;
@@ -144,112 +151,88 @@ public class BoardController : MonoBehaviour
                 }
             }
 
-            // If we found a piece, check turn and "pick it up"
             if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
             {
-                m_SelectedPiece = topmostPiece;
-                m_OriginalTile = m_SelectedPiece.GetCurrentTile();
+                m_MouseDownOnPiece = true;
+                if (m_SelectedPiece == topmostPiece)
+                {
+                    m_SelectedPiece = null;
+                    ClearHighlights();
+                }
+                else
+                {
+                    m_SelectedPiece = topmostPiece;
+                    m_OriginalTile = m_SelectedPiece.GetCurrentTile();
+                    HighlightMoves(m_SelectedPiece);
+                }
+            }
+        }
 
+        // Mouse drag
+        if (Input.GetMouseButton(0) && m_SelectedPiece != null && m_MouseDownOnPiece)
+        {
+            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+            if (!m_IsDragging && Vector3.Distance(mouseWorldPos, m_MouseDownPos) > 0.1f)
+            {
+                m_IsDragging = true;
+                ClearHighlights();
                 if (m_OriginalTile != null)
                 {
                     m_SelectedPiece.transform.SetParent(null);
                     m_OriginalTile.ClearTile();
                 }
             }
+
+            if (m_IsDragging)
+            {
+                m_SelectedPiece.transform.position = new Vector3(mouseWorldPos.x,
+                    mouseWorldPos.y,
+                    -0.01f);
+            }
         }
 
-        // 2) Mouse drag
-        if (Input.GetMouseButton(0) && m_SelectedPiece != null)
-        {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-    
-            // Just place the piece directly at the cursor (plus a tiny Z offset).
-            m_SelectedPiece.transform.position = new Vector3(mouseWorldPos.x,
-                mouseWorldPos.y,
-                -0.01f);
-        }
-
-        // 3) Mouse up: try to drop onto a tile
-        if (Input.GetMouseButtonUp(0) && m_SelectedPiece != null)
+        // Mouse up
+        if (Input.GetMouseButtonUp(0))
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
 
             Tile tileBelow = null;
-
-            // Look for any tile collider under the mouse
             foreach (RaycastHit2D hit in hits)
             {
                 Tile t = hit.collider.GetComponent<Tile>();
                 if (t != null)
                 {
                     tileBelow = t;
-                    break; // we'll just pick the first tile we find
+                    break;
                 }
             }
 
-            bool moveMade = false;
-            if (tileBelow != null && IsLegalMove(m_SelectedPiece, m_OriginalTile, tileBelow))
+            if (m_IsDragging)
             {
-                // Simulate the move
-                Piece capturedPiece = tileBelow.GetCurrentPiece();
-                tileBelow.SetPiece(m_SelectedPiece);
-                m_SelectedPiece.SetTile(tileBelow);
-
-                bool kingInCheck = IsKingInCheck(m_SelectedPiece.IsWhite());
-
-                if (kingInCheck)
+                if (m_SelectedPiece != null)
                 {
-                    // Revert illegal move
-                    tileBelow.SetPiece(capturedPiece);
-                    if (capturedPiece != null)
+                    bool moveMade = tileBelow != null && TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow);
+                    if (!moveMade && m_OriginalTile != null)
                     {
-                        capturedPiece.SetTile(tileBelow);
+                        m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
+                        m_OriginalTile.SetPiece(m_SelectedPiece);
+                        m_SelectedPiece.SetTile(m_OriginalTile);
+                        m_SelectedPiece.transform.SetParent(m_OriginalTile.transform);
                     }
-                    m_OriginalTile.SetPiece(m_SelectedPiece);
-                    m_SelectedPiece.SetTile(m_OriginalTile);
                 }
-                else
-                {
-                    // Finalize capture if any
-                    if (capturedPiece != null)
-                    {
-                        bool isWhitePiece = capturedPiece.IsWhite();
-                        CapturedPieceUi capUi =
-                            Instantiate(m_PiecePrefabUI,
-                                    isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
-                                .GetComponent<CapturedPieceUi>();
-                        capUi.SetupCapturedUiPiece(capturedPiece.GetChessPiece());
-                        Destroy(capturedPiece.gameObject);
-                    }
-
-                    // Place piece visually
-                    m_SelectedPiece.transform.position = tileBelow.transform.position;
-                    m_SelectedPiece.transform.SetParent(tileBelow.transform);
-
-                    if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
-                    {
-                        PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
-                    }
-
-                    m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
-                    BoardFlipper.FlipCamera();
-                    moveMade = true;
-
-                    // Evaluate opponent's state
-                    EvaluateGameState(!m_LastMoveWasWhite.Value);
-                }
+                m_IsDragging = false;
+                m_SelectedPiece = null;
             }
-
-            if (!moveMade && m_OriginalTile != null)
+            else if (m_SelectedPiece != null && tileBelow != null && m_HighlightedTiles.Contains(tileBelow))
             {
-                m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
-                m_OriginalTile.SetPiece(m_SelectedPiece);
-                m_SelectedPiece.SetTile(m_OriginalTile);
-                m_SelectedPiece.transform.SetParent(m_OriginalTile.transform);
+                if (TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow))
+                {
+                    ClearHighlights();
+                    m_SelectedPiece = null;
+                }
             }
-
-            m_SelectedPiece = null;
         }
     }
 
@@ -339,6 +322,99 @@ public class BoardController : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void HighlightMoves(Piece piece)
+    {
+        ClearHighlights();
+        Tile from = piece.GetCurrentTile();
+        foreach (RowData row in m_Grid)
+        {
+            foreach (Tile tile in row.m_Row)
+            {
+                if (IsLegalMove(piece, from, tile))
+                {
+                    tile.Highlight(Color.yellow);
+                    m_HighlightedTiles.Add(tile);
+                }
+            }
+        }
+    }
+
+    private void ClearHighlights()
+    {
+        foreach (Tile t in m_HighlightedTiles)
+        {
+            t.ClearHighlight();
+        }
+        m_HighlightedTiles.Clear();
+    }
+
+    private bool TryMovePiece(Piece piece, Tile from, Tile to)
+    {
+        if (!IsLegalMove(piece, from, to))
+            return false;
+
+        Piece capturedPiece = to.GetCurrentPiece();
+        to.SetPiece(piece);
+        piece.SetTile(to);
+
+        bool kingInCheck = IsKingInCheck(piece.IsWhite());
+
+        if (kingInCheck)
+        {
+            to.SetPiece(capturedPiece);
+            if (capturedPiece != null)
+                capturedPiece.SetTile(to);
+            from.SetPiece(piece);
+            piece.SetTile(from);
+            return false;
+        }
+
+        if (capturedPiece != null)
+        {
+            bool isWhitePiece = capturedPiece.IsWhite();
+            CapturedPieceUi capUi =
+                Instantiate(m_PiecePrefabUI,
+                        isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
+                    .GetComponent<CapturedPieceUi>();
+            capUi.SetupCapturedUiPiece(capturedPiece.GetChessPiece());
+            Destroy(capturedPiece.gameObject);
+        }
+
+        piece.transform.position = to.transform.position;
+        piece.transform.SetParent(to.transform);
+
+        if (piece.IsPawn() && (to.GetRow() == 0 || to.GetRow() == 7))
+        {
+            PromotionPanel.Instance.ShowPanel(piece, to);
+        }
+
+        m_LastMoveWasWhite = piece.IsWhite();
+        BoardFlipper.FlipCamera();
+        EventsManager.OnTurnChanged.Invoke(!m_LastMoveWasWhite.Value);
+
+        EvaluateGameState(!m_LastMoveWasWhite.Value);
+        return true;
+    }
+
+    private void UpdateCheckHighlights()
+    {
+        Tile newWhite = IsKingInCheck(true) ? FindKingTile(true) : null;
+        if (m_WhiteCheckTile != newWhite)
+        {
+            if (m_WhiteCheckTile != null) m_WhiteCheckTile.ClearHighlight();
+            if (newWhite != null) newWhite.Highlight(Color.red);
+            m_WhiteCheckTile = newWhite;
+        }
+
+        Tile newBlack = IsKingInCheck(false) ? FindKingTile(false) : null;
+        if (m_BlackCheckTile != newBlack)
+        {
+            if (m_BlackCheckTile != null) m_BlackCheckTile.ClearHighlight();
+            if (newBlack != null) newBlack.Highlight(Color.red);
+            m_BlackCheckTile = newBlack;
+        }
     }
 
     private Tile FindKingTile(bool isWhite)
@@ -435,6 +511,7 @@ public class BoardController : MonoBehaviour
 
     private void EvaluateGameState(bool isWhiteTurn)
     {
+        UpdateCheckHighlights();
         bool inCheck = IsKingInCheck(isWhiteTurn);
         List<Move> legalMoves = GetLegalMoves(isWhiteTurn);
 
