@@ -110,10 +110,10 @@ public class PuckController : MonoBehaviour
             var dottedMat = new Material(Shader.Find("Sprites/Default"));
             dottedMat.mainTexture = dotTex;
             m_TrajectoryRenderer.material = dottedMat;
-            // Reduce the texture scale so the two-pixel pattern tiles more
-            // frequently along the line, giving the appearance of many closely
-            // spaced dots.
-            m_TrajectoryRenderer.material.mainTextureScale = new Vector2(2f, 1f);
+            // Increase the texture tiling so the two-pixel pattern repeats
+            // more often, giving the appearance of many closely spaced dots
+            // instead of longer dashes.
+            m_TrajectoryRenderer.material.mainTextureScale = new Vector2(4f, 1f);
         }
 
 
