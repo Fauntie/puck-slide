@@ -132,36 +132,29 @@ public class BoardController : MonoBehaviour
             m_MouseDownPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             m_MouseDownOnPiece = false;
 
-            RaycastHit2D[] hits = Physics2D.RaycastAll(m_MouseDownPos, Vector2.zero);
-
-            Piece topmostPiece = null;
-            int topSortingOrder = int.MinValue;
-
-            foreach (RaycastHit2D hit in hits)
+            Piece clickedPiece = null;
+            foreach (RaycastHit2D hit in Physics2D.RaycastAll(m_MouseDownPos, Vector2.zero))
             {
                 Piece piece = hit.collider.GetComponent<Piece>();
-                if (piece != null)
+                if (piece != null &&
+                    (m_LastMoveWasWhite == null || piece.IsWhite() != m_LastMoveWasWhite.Value))
                 {
-                    int order = piece.GetComponent<SpriteRenderer>().sortingOrder;
-                    if (order > topSortingOrder)
-                    {
-                        topmostPiece = piece;
-                        topSortingOrder = order;
-                    }
+                    clickedPiece = piece;
+                    break;
                 }
             }
 
-            if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
+            if (clickedPiece != null)
             {
                 m_MouseDownOnPiece = true;
-                if (m_SelectedPiece == topmostPiece)
+                if (m_SelectedPiece == clickedPiece)
                 {
                     m_SelectedPiece = null;
                     ClearHighlights();
                 }
                 else
                 {
-                    m_SelectedPiece = topmostPiece;
+                    m_SelectedPiece = clickedPiece;
                     m_OriginalTile = m_SelectedPiece.GetCurrentTile();
                     HighlightMoves(m_SelectedPiece);
                 }
