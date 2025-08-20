@@ -27,6 +27,7 @@ public class BoardController : MonoBehaviour
     private Piece m_SelectedPiece;
     private Vector3 m_Offset;
     private Tile m_OriginalTile;
+    private List<Tile> m_HighlightedTiles = new List<Tile>();
 
     private struct Move
     {
@@ -133,6 +134,8 @@ public class BoardController : MonoBehaviour
         // 1) Mouse down
         if (Input.GetMouseButtonDown(0))
         {
+            ClearHighlights();
+
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
             // Collect everything under the mouse
@@ -165,6 +168,12 @@ public class BoardController : MonoBehaviour
                 {
                     m_SelectedPiece.transform.SetParent(null);
                     m_OriginalTile.ClearTile();
+
+                    m_HighlightedTiles = GetLegalMovesForPiece(m_SelectedPiece, m_OriginalTile);
+                    foreach (Tile t in m_HighlightedTiles)
+                    {
+                        t.Highlight(true);
+                    }
                 }
             }
         }
@@ -259,6 +268,7 @@ public class BoardController : MonoBehaviour
                 m_SelectedPiece.transform.SetParent(m_OriginalTile.transform);
             }
 
+            ClearHighlights();
             m_SelectedPiece = null;
         }
     }
@@ -395,6 +405,57 @@ public class BoardController : MonoBehaviour
         return false;
     }
 
+    private List<Tile> GetLegalMovesForPiece(Piece piece, Tile from)
+    {
+        List<Tile> tiles = new List<Tile>();
+
+        from.SetPiece(piece);
+        piece.SetTile(from);
+
+        foreach (RowData row in m_Grid)
+        {
+            foreach (Tile to in row.m_Row)
+            {
+                if (to == from)
+                    continue;
+                if (!IsLegalMove(piece, from, to))
+                    continue;
+
+                Piece captured = to.GetCurrentPiece();
+                to.SetPiece(piece);
+                piece.SetTile(to);
+                from.ClearTile();
+
+                bool inCheck = IsKingInCheck(piece.IsWhite());
+
+                from.SetPiece(piece);
+                piece.SetTile(from);
+                to.SetPiece(captured);
+                if (captured != null)
+                    captured.SetTile(to);
+
+                if (!inCheck)
+                {
+                    tiles.Add(to);
+                }
+            }
+        }
+
+        from.ClearTile();
+        piece.SetTile(null);
+
+        return tiles;
+    }
+
+    private void ClearHighlights()
+    {
+        foreach (Tile t in m_HighlightedTiles)
+        {
+            t.Highlight(false);
+        }
+        m_HighlightedTiles.Clear();
+    }
+
     private List<Move> GetLegalMoves(bool isWhite)
     {
         List<Move> moves = new List<Move>();
@@ -446,6 +507,7 @@ public class BoardController : MonoBehaviour
     private void EvaluateGameState(bool isWhiteTurn)
     {
         bool inCheck = IsKingInCheck(isWhiteTurn);
+        EventsManager.OnCheck.Invoke(inCheck ? (isWhiteTurn ? 1 : -1) : 0);
         List<Move> legalMoves = GetLegalMoves(isWhiteTurn);
 
         if (legalMoves.Count == 0)
