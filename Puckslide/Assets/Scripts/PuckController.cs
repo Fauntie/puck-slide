@@ -304,7 +304,7 @@ public class PuckController : MonoBehaviour
             m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         }
 
-        m_DragStartPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        m_DragStartPos = transform.position;
         
         if (m_LineRenderer != null)
         {
