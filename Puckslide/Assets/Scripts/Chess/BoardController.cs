@@ -29,6 +29,17 @@ public class BoardController : MonoBehaviour
     private Tile m_OriginalTile;
     private bool? m_LastMoveWasWhite = null;
 
+    private struct Move
+    {
+        public Tile From;
+        public Tile To;
+        public Move(Tile from, Tile to)
+        {
+            From = from;
+            To = to;
+        }
+    }
+
     private void OnEnable()
     {
         for (int i = m_CapturedPiecesWhiteTransform.childCount - 1; i >= 0; i--)
@@ -180,33 +191,54 @@ public class BoardController : MonoBehaviour
             bool moveMade = false;
             if (tileBelow != null && IsLegalMove(m_SelectedPiece, m_OriginalTile, tileBelow))
             {
-                if (tileBelow.HasPiece())
-                {
-                    Piece piece = tileBelow.GetCurrentPiece();
-                    bool isWhitePiece = piece.IsWhite();
-                    CapturedPieceUi capUi =
-                        Instantiate(m_PiecePrefabUI,
-                                isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
-                            .GetComponent<CapturedPieceUi>();
-                    capUi.SetupCapturedUiPiece(piece.GetChessPiece());
-
-                    Destroy(piece.gameObject);
-                    tileBelow.ClearTile();
-                }
-
+                // Simulate the move
+                Piece capturedPiece = tileBelow.GetCurrentPiece();
                 tileBelow.SetPiece(m_SelectedPiece);
                 m_SelectedPiece.SetTile(tileBelow);
-                m_SelectedPiece.transform.position = tileBelow.transform.position;
-                m_SelectedPiece.transform.SetParent(tileBelow.transform);
 
-                if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
+                bool kingInCheck = IsKingInCheck(m_SelectedPiece.IsWhite());
+
+                if (kingInCheck)
                 {
-                    PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
+                    // Revert illegal move
+                    tileBelow.SetPiece(capturedPiece);
+                    if (capturedPiece != null)
+                    {
+                        capturedPiece.SetTile(tileBelow);
+                    }
+                    m_OriginalTile.SetPiece(m_SelectedPiece);
+                    m_SelectedPiece.SetTile(m_OriginalTile);
                 }
+                else
+                {
+                    // Finalize capture if any
+                    if (capturedPiece != null)
+                    {
+                        bool isWhitePiece = capturedPiece.IsWhite();
+                        CapturedPieceUi capUi =
+                            Instantiate(m_PiecePrefabUI,
+                                    isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
+                                .GetComponent<CapturedPieceUi>();
+                        capUi.SetupCapturedUiPiece(capturedPiece.GetChessPiece());
+                        Destroy(capturedPiece.gameObject);
+                    }
 
-                m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
-                BoardFlipper.FlipCamera();
-                moveMade = true;
+                    // Place piece visually
+                    m_SelectedPiece.transform.position = tileBelow.transform.position;
+                    m_SelectedPiece.transform.SetParent(tileBelow.transform);
+
+                    if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
+                    {
+                        PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
+                    }
+
+                    m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
+                    BoardFlipper.FlipCamera();
+                    moveMade = true;
+
+                    // Evaluate opponent's state
+                    EvaluateGameState(!m_LastMoveWasWhite.Value);
+                }
             }
 
             if (!moveMade && m_OriginalTile != null)
@@ -308,4 +340,119 @@ public class BoardController : MonoBehaviour
 
         return false;
     }
+
+    private Tile FindKingTile(bool isWhite)
+    {
+        foreach (RowData row in m_Grid)
+        {
+            foreach (Tile tile in row.m_Row)
+            {
+                if (tile.HasPiece())
+                {
+                    Piece p = tile.GetCurrentPiece();
+                    if (p.IsWhite() == isWhite &&
+                        (p.GetChessPiece() == ChessPiece.W_King || p.GetChessPiece() == ChessPiece.B_King))
+                    {
+                        return tile;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private bool IsKingInCheck(bool isWhite)
+    {
+        Tile kingTile = FindKingTile(isWhite);
+        if (kingTile == null)
+            return false;
+
+        foreach (RowData row in m_Grid)
+        {
+            foreach (Tile tile in row.m_Row)
+            {
+                if (tile.HasPiece())
+                {
+                    Piece piece = tile.GetCurrentPiece();
+                    if (piece.IsWhite() != isWhite && IsLegalMove(piece, tile, kingTile))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private List<Move> GetLegalMoves(bool isWhite)
+    {
+        List<Move> moves = new List<Move>();
+        for (int y = 0; y < m_Grid.Length; y++)
+        {
+            Tile[] row = m_Grid[y].m_Row;
+            for (int x = 0; x < row.Length; x++)
+            {
+                Tile from = row[x];
+                if (!from.HasPiece())
+                    continue;
+                Piece piece = from.GetCurrentPiece();
+                if (piece.IsWhite() != isWhite)
+                    continue;
+
+                for (int y2 = 0; y2 < m_Grid.Length; y2++)
+                {
+                    Tile[] row2 = m_Grid[y2].m_Row;
+                    for (int x2 = 0; x2 < row2.Length; x2++)
+                    {
+                        Tile to = row2[x2];
+                        if (!IsLegalMove(piece, from, to))
+                            continue;
+
+                        Piece captured = to.GetCurrentPiece();
+                        to.SetPiece(piece);
+                        piece.SetTile(to);
+                        from.ClearTile();
+
+                        bool inCheck = IsKingInCheck(isWhite);
+
+                        from.SetPiece(piece);
+                        piece.SetTile(from);
+                        to.SetPiece(captured);
+                        if (captured != null)
+                            captured.SetTile(to);
+
+                        if (!inCheck)
+                        {
+                            moves.Add(new Move(from, to));
+                        }
+                    }
+                }
+            }
+        }
+        return moves;
+    }
+
+    private void EvaluateGameState(bool isWhiteTurn)
+    {
+        bool inCheck = IsKingInCheck(isWhiteTurn);
+        List<Move> legalMoves = GetLegalMoves(isWhiteTurn);
+
+        if (legalMoves.Count == 0)
+        {
+            if (inCheck)
+            {
+                EventsManager.OnGameState.Invoke("checkmate");
+            }
+            else
+            {
+                EventsManager.OnGameState.Invoke("draw");
+            }
+        }
+        else if (inCheck)
+        {
+            EventsManager.OnGameState.Invoke("check");
+        }
+    }
 }
+
