@@ -12,6 +12,20 @@ public static class EventsManager
     public static readonly Evt<Rigidbody2D> OnPuckDespawned = new Evt<Rigidbody2D>();
     public static readonly Evt<bool> OnTurnChanged = new Evt<bool>(true);
     public static readonly Evt<string> OnGameState = new Evt<string>();
+
+    public static bool IsWhiteTurn { get; private set; } = true;
+
+    public static void ResetTurn()
+    {
+        IsWhiteTurn = true;
+        OnTurnChanged.Invoke(IsWhiteTurn);
+    }
+
+    public static void ToggleTurn()
+    {
+        IsWhiteTurn = !IsWhiteTurn;
+        OnTurnChanged.Invoke(IsWhiteTurn);
+    }
 }
 
 

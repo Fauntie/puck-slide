@@ -9,6 +9,8 @@ public class TurnIndicator : MonoBehaviour
     [SerializeField]
     private Vector3 m_Offset = new Vector3(0f, 0f, -0.1f);
 
+    private bool m_SkipFlip = true;
+
     private void Awake()
     {
         if (m_Text == null)
@@ -30,7 +32,7 @@ public class TurnIndicator : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged);
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
     }
 
     private void OnDisable()
@@ -43,6 +45,21 @@ public class TurnIndicator : MonoBehaviour
         if (m_Text != null)
         {
             m_Text.text = isWhiteTurn ? "White's turn" : "Black's turn";
+        }
+
+        if (m_SkipFlip)
+        {
+            m_SkipFlip = false;
+            return;
+        }
+
+        if (Phase2Manager.IsPhase2Active)
+        {
+            BoardFlipper.FlipCamera();
+        }
+        else
+        {
+            BoardFlipper.Flip();
         }
     }
 }
