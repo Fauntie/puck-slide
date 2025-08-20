@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class PuckController : MonoBehaviour
@@ -54,6 +55,12 @@ public class PuckController : MonoBehaviour
 
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
+
+    // Cached board data used for highlighting legal moves.
+    private static readonly List<Tile> s_HighlightedTiles = new List<Tile>();
+    private static Dictionary<Vector2Int, Tile> s_TileMap;
+    private static float s_TileSize;
+    private static Vector2 s_BoardOrigin;
 
     private void Awake()
     {
@@ -320,6 +327,8 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
         }
+
+        HighlightLegalMoves();
     }
 
     private void OnMouseDrag()
@@ -397,6 +406,8 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.enabled = false;
         }
         m_IsSelected = false;
+
+        ClearHighlights();
 
         StartCoroutine(WaitForPuckStopped());
     }
@@ -493,6 +504,252 @@ public class PuckController : MonoBehaviour
     {
         s_IsWhiteTurn = true; // Start with white's turn
         EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+    }
+
+    private static void EnsureTileMap()
+    {
+        if (s_TileMap != null)
+        {
+            return;
+        }
+
+        s_TileMap = new Dictionary<Vector2Int, Tile>();
+        Transform board = BoardFlipper.GetBoardTransform();
+        if (board == null)
+        {
+            return;
+        }
+
+        Tile[] tiles = board.GetComponentsInChildren<Tile>();
+        if (tiles.Length == 0)
+        {
+            return;
+        }
+
+        float minX = float.PositiveInfinity;
+        float minY = float.PositiveInfinity;
+        float step = float.PositiveInfinity;
+
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            Vector3 posI = tiles[i].transform.position;
+            minX = Mathf.Min(minX, posI.x);
+            minY = Mathf.Min(minY, posI.y);
+            for (int j = i + 1; j < tiles.Length; j++)
+            {
+                float dx = Mathf.Abs(posI.x - tiles[j].transform.position.x);
+                float dy = Mathf.Abs(posI.y - tiles[j].transform.position.y);
+                if (dx > 0.001f && dx < step)
+                {
+                    step = dx;
+                }
+                if (dy > 0.001f && dy < step)
+                {
+                    step = dy;
+                }
+            }
+        }
+
+        if (float.IsInfinity(step) || step <= 0f)
+        {
+            step = 1f;
+        }
+
+        s_TileSize = step;
+        s_BoardOrigin = new Vector2(minX, minY);
+
+        foreach (Tile tile in tiles)
+        {
+            Vector3 pos = tile.transform.position;
+            int gx = Mathf.RoundToInt((pos.x - minX) / step);
+            int gy = Mathf.RoundToInt((pos.y - minY) / step);
+            Vector2Int coords = new Vector2Int(gx, gy);
+            if (!s_TileMap.ContainsKey(coords))
+            {
+                s_TileMap[coords] = tile;
+            }
+        }
+    }
+
+    private static bool IsWhite(ChessPiece piece)
+    {
+        return (int)piece >= 6;
+    }
+
+    private static void ClearHighlights()
+    {
+        foreach (Tile tile in s_HighlightedTiles)
+        {
+            tile.ClearHighlight();
+        }
+        s_HighlightedTiles.Clear();
+    }
+
+    private void HighlightLegalMoves()
+    {
+        EnsureTileMap();
+        ClearHighlights();
+        if (CurrentGridPosition.x < 0)
+        {
+            return;
+        }
+
+        // Build current board layout from pucks.
+        Dictionary<Vector2Int, ChessPiece> layout = new Dictionary<Vector2Int, ChessPiece>();
+        foreach (PuckController puck in FindObjectsOfType<PuckController>())
+        {
+            if (puck.CurrentGridPosition.x >= 0)
+            {
+                layout[puck.CurrentGridPosition] = puck.ChessPiece;
+            }
+        }
+
+        List<Vector2Int> moves = GetLegalMoves(ChessPiece, CurrentGridPosition, layout);
+        foreach (Vector2Int move in moves)
+        {
+            if (s_TileMap != null && s_TileMap.TryGetValue(move, out Tile tile))
+            {
+                tile.Highlight(Color.yellow);
+                s_HighlightedTiles.Add(tile);
+            }
+        }
+    }
+
+    private static List<Vector2Int> GetLegalMoves(ChessPiece piece, Vector2Int start, Dictionary<Vector2Int, ChessPiece> layout)
+    {
+        List<Vector2Int> moves = new List<Vector2Int>();
+        bool white = IsWhite(piece);
+
+        switch (piece)
+        {
+            case ChessPiece.W_Pawn:
+            case ChessPiece.B_Pawn:
+            {
+                int dir = white ? 1 : -1;
+                Vector2Int forward = new Vector2Int(start.x, start.y + dir);
+                if (!layout.ContainsKey(forward) && InBounds(forward))
+                {
+                    moves.Add(forward);
+                    Vector2Int doubleStep = new Vector2Int(start.x, start.y + 2 * dir);
+                    int startRow = white ? 1 : 6;
+                    if (start.y == startRow && !layout.ContainsKey(doubleStep) && InBounds(doubleStep))
+                    {
+                        moves.Add(doubleStep);
+                    }
+                }
+                Vector2Int left = new Vector2Int(start.x - 1, start.y + dir);
+                Vector2Int right = new Vector2Int(start.x + 1, start.y + dir);
+                if (layout.TryGetValue(left, out ChessPiece lp) && IsWhite(lp) != white)
+                {
+                    moves.Add(left);
+                }
+                if (layout.TryGetValue(right, out ChessPiece rp) && IsWhite(rp) != white)
+                {
+                    moves.Add(right);
+                }
+                break;
+            }
+            case ChessPiece.W_Rook:
+            case ChessPiece.B_Rook:
+                AddLinearMoves(moves, start, layout, white, new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1));
+                break;
+            case ChessPiece.W_Bishop:
+            case ChessPiece.B_Bishop:
+                AddLinearMoves(moves, start, layout, white, new Vector2Int(1, 1), new Vector2Int(-1, 1), new Vector2Int(1, -1), new Vector2Int(-1, -1));
+                break;
+            case ChessPiece.W_Queen:
+            case ChessPiece.B_Queen:
+                AddLinearMoves(moves, start, layout, white,
+                    new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
+                    new Vector2Int(1, 1), new Vector2Int(-1, 1), new Vector2Int(1, -1), new Vector2Int(-1, -1));
+                break;
+            case ChessPiece.W_Knight:
+            case ChessPiece.B_Knight:
+            {
+                Vector2Int[] offsets =
+                {
+                    new Vector2Int(1, 2), new Vector2Int(2, 1), new Vector2Int(-1, 2), new Vector2Int(-2, 1),
+                    new Vector2Int(1, -2), new Vector2Int(2, -1), new Vector2Int(-1, -2), new Vector2Int(-2, -1)
+                };
+                foreach (Vector2Int off in offsets)
+                {
+                    Vector2Int dest = start + off;
+                    if (!InBounds(dest))
+                    {
+                        continue;
+                    }
+                    if (layout.TryGetValue(dest, out ChessPiece p))
+                    {
+                        if (IsWhite(p) != white)
+                        {
+                            moves.Add(dest);
+                        }
+                    }
+                    else
+                    {
+                        moves.Add(dest);
+                    }
+                }
+                break;
+            }
+            case ChessPiece.W_King:
+            case ChessPiece.B_King:
+            {
+                Vector2Int[] offsets =
+                {
+                    new Vector2Int(1, 0), new Vector2Int(-1, 0), new Vector2Int(0, 1), new Vector2Int(0, -1),
+                    new Vector2Int(1, 1), new Vector2Int(-1, 1), new Vector2Int(1, -1), new Vector2Int(-1, -1)
+                };
+                foreach (Vector2Int off in offsets)
+                {
+                    Vector2Int dest = start + off;
+                    if (!InBounds(dest))
+                    {
+                        continue;
+                    }
+                    if (layout.TryGetValue(dest, out ChessPiece p))
+                    {
+                        if (IsWhite(p) != white)
+                        {
+                            moves.Add(dest);
+                        }
+                    }
+                    else
+                    {
+                        moves.Add(dest);
+                    }
+                }
+                break;
+            }
+        }
+
+        return moves;
+    }
+
+    private static void AddLinearMoves(List<Vector2Int> moves, Vector2Int start, Dictionary<Vector2Int, ChessPiece> layout, bool white, params Vector2Int[] directions)
+    {
+        foreach (Vector2Int dir in directions)
+        {
+            Vector2Int pos = start + dir;
+            while (InBounds(pos))
+            {
+                if (layout.TryGetValue(pos, out ChessPiece p))
+                {
+                    if (IsWhite(p) != white)
+                    {
+                        moves.Add(pos);
+                    }
+                    break;
+                }
+                moves.Add(pos);
+                pos += dir;
+            }
+        }
+    }
+
+    private static bool InBounds(Vector2Int pos)
+    {
+        return pos.x >= 0 && pos.x < 8 && pos.y >= 0 && pos.y < 8;
     }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
