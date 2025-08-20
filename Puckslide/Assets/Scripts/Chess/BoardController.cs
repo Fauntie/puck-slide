@@ -405,6 +405,9 @@ public class BoardController : MonoBehaviour
         BoardFlipper.FlipCamera();
         EventsManager.OnTurnChanged.Invoke(!m_LastMoveWasWhite.Value);
 
+        // Highlight the king if it has been put in check by the latest move
+        UpdateCheckHighlights();
+
         EvaluateGameState(!m_LastMoveWasWhite.Value);
         return true;
     }
@@ -522,7 +525,6 @@ public class BoardController : MonoBehaviour
 
     private void EvaluateGameState(bool isWhiteTurn)
     {
-        UpdateCheckHighlights();
         bool inCheck = IsKingInCheck(isWhiteTurn);
         List<Move> legalMoves = GetLegalMoves(isWhiteTurn);
 
