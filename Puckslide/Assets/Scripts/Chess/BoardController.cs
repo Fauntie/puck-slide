@@ -63,20 +63,27 @@ public class BoardController : MonoBehaviour
             Transform child = m_CapturedPiecesBlackTransform.GetChild(i);
             Destroy(child.gameObject);
         }
-        
+
         EventsManager.OnBoardLayout.AddListener(OnBoardLayout, true);
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
         m_LastMoveWasWhite = null;
     }
-    
+
     private void OnDisable()
     {
         EventsManager.OnBoardLayout.RemoveListener(OnBoardLayout);
-        
+        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+
         Piece[] gamePieces = FindObjectsOfType<Piece>();
         foreach (Piece piece in gamePieces)
         {
             Destroy(piece.gameObject);
         }
+    }
+
+    private void OnTurnChanged(bool _)
+    {
+        ClearHighlights();
     }
 
     private void OnBoardLayout(Dictionary<Vector2Int, ChessPiece> layout)
@@ -218,10 +225,11 @@ public class BoardController : MonoBehaviour
 
             if (m_IsDragging)
             {
+                bool moveMade = false;
                 if (m_SelectedPiece != null)
                 {
-                    bool moveMade = tileBelow != null && m_HighlightedTiles.Contains(tileBelow) &&
-                                     TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow);
+                    moveMade = tileBelow != null && m_HighlightedTiles.Contains(tileBelow) &&
+                               TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow);
                     if (!moveMade && m_OriginalTile != null)
                     {
                         m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
@@ -231,7 +239,10 @@ public class BoardController : MonoBehaviour
                     }
                 }
                 m_IsDragging = false;
-                ClearHighlights();
+                if (!moveMade)
+                {
+                    ClearHighlights();
+                }
                 m_SelectedPiece = null;
                 m_MouseDownPiece = null;
             }
@@ -239,7 +250,6 @@ public class BoardController : MonoBehaviour
             {
                 if (TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow))
                 {
-                    ClearHighlights();
                     m_SelectedPiece = null;
                 }
                 m_MouseDownPiece = null;
@@ -338,6 +348,7 @@ public class BoardController : MonoBehaviour
     private void HighlightMoves(Piece piece)
     {
         ClearHighlights();
+        UpdateCheckHighlights();
         Tile from = piece.GetCurrentTile();
         foreach (RowData row in m_Grid)
         {
@@ -359,6 +370,8 @@ public class BoardController : MonoBehaviour
             t.ClearHighlight();
         }
         m_HighlightedTiles.Clear();
+        m_WhiteCheckTile = null;
+        m_BlackCheckTile = null;
     }
 
     private bool TryMovePiece(Piece piece, Tile from, Tile to)
@@ -417,16 +430,32 @@ public class BoardController : MonoBehaviour
         Tile newWhite = IsKingInCheck(true) ? FindKingTile(true) : null;
         if (m_WhiteCheckTile != newWhite)
         {
-            if (m_WhiteCheckTile != null) m_WhiteCheckTile.ClearHighlight();
-            if (newWhite != null) newWhite.Highlight(Color.red);
+            if (m_WhiteCheckTile != null)
+            {
+                m_WhiteCheckTile.ClearHighlight();
+                m_HighlightedTiles.Remove(m_WhiteCheckTile);
+            }
+            if (newWhite != null)
+            {
+                newWhite.Highlight(Color.red);
+                m_HighlightedTiles.Add(newWhite);
+            }
             m_WhiteCheckTile = newWhite;
         }
 
         Tile newBlack = IsKingInCheck(false) ? FindKingTile(false) : null;
         if (m_BlackCheckTile != newBlack)
         {
-            if (m_BlackCheckTile != null) m_BlackCheckTile.ClearHighlight();
-            if (newBlack != null) newBlack.Highlight(Color.red);
+            if (m_BlackCheckTile != null)
+            {
+                m_BlackCheckTile.ClearHighlight();
+                m_HighlightedTiles.Remove(m_BlackCheckTile);
+            }
+            if (newBlack != null)
+            {
+                newBlack.Highlight(Color.red);
+                m_HighlightedTiles.Add(newBlack);
+            }
             m_BlackCheckTile = newBlack;
         }
     }
