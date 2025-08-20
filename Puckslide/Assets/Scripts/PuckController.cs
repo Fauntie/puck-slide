@@ -56,6 +56,8 @@ public class PuckController : MonoBehaviour
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
 
+    private GridManager m_GridManager;
+
     // Cached board data used for highlighting legal moves.
     private static readonly List<Tile> s_HighlightedTiles = new List<Tile>();
     private static Dictionary<Vector2Int, Tile> s_TileMap;
@@ -73,6 +75,7 @@ public class PuckController : MonoBehaviour
         }
         m_PuckFriction = GetComponent<PuckFriction>();
         m_Collider = GetComponent<CircleCollider2D>();
+        m_GridManager = FindObjectOfType<GridManager>();
 
         if (m_Collider != null)
         {
@@ -327,7 +330,7 @@ public class PuckController : MonoBehaviour
             m_TrajectoryRenderer.startWidth = m_MinLineWidth;
             m_TrajectoryRenderer.endWidth = m_MinLineWidth;
         }
-
+        m_GridManager?.UpdatePieceLayout();
         HighlightLegalMoves();
     }
 
@@ -483,6 +486,8 @@ public class PuckController : MonoBehaviour
             transform.rotation = Quaternion.identity;
             m_HasReachedBoard = false;
         }
+
+        m_GridManager?.UpdatePieceLayout();
     }
 
     private void OnTriggerEnter2D(Collider2D other)
