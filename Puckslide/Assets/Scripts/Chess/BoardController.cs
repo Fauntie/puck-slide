@@ -27,6 +27,9 @@ public class BoardController : MonoBehaviour
     private Piece m_SelectedPiece;
     private Vector3 m_Offset;
     private Tile m_OriginalTile;
+    // Piece that was under the mouse on the initial press. Used to
+    // re-select a piece if the user begins dragging after deselecting it.
+    private Piece m_MouseDownPiece;
     private bool? m_LastMoveWasWhite = null;
 
     private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
@@ -147,6 +150,8 @@ public class BoardController : MonoBehaviour
             if (clickedPiece != null)
             {
                 m_MouseDownOnPiece = true;
+                m_MouseDownPiece = clickedPiece;
+
                 if (m_SelectedPiece == clickedPiece)
                 {
                     m_SelectedPiece = null;
@@ -162,22 +167,30 @@ public class BoardController : MonoBehaviour
         }
 
         // Mouse drag
-        if (Input.GetMouseButton(0) && m_SelectedPiece != null && m_MouseDownOnPiece)
+        if (Input.GetMouseButton(0) && m_MouseDownOnPiece)
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
 
             if (!m_IsDragging && Vector3.Distance(mouseWorldPos, m_MouseDownPos) > 0.1f)
             {
                 m_IsDragging = true;
-                ClearHighlights();
-                if (m_OriginalTile != null)
+                // If the user begins dragging after deselecting the piece in the
+                // mouse-down phase, treat the drag as a fresh selection.
+                if (m_SelectedPiece == null && m_MouseDownPiece != null)
+                {
+                    m_SelectedPiece = m_MouseDownPiece;
+                    m_OriginalTile = m_SelectedPiece.GetCurrentTile();
+                    HighlightMoves(m_SelectedPiece);
+                }
+
+                if (m_SelectedPiece != null && m_OriginalTile != null)
                 {
                     m_SelectedPiece.transform.SetParent(null);
                     m_OriginalTile.ClearTile();
                 }
             }
 
-            if (m_IsDragging)
+            if (m_IsDragging && m_SelectedPiece != null)
             {
                 m_SelectedPiece.transform.position = new Vector3(mouseWorldPos.x,
                     mouseWorldPos.y,
@@ -190,6 +203,7 @@ public class BoardController : MonoBehaviour
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
+            m_MouseDownOnPiece = false;
 
             Tile tileBelow = null;
             foreach (RaycastHit2D hit in hits)
@@ -206,7 +220,8 @@ public class BoardController : MonoBehaviour
             {
                 if (m_SelectedPiece != null)
                 {
-                    bool moveMade = tileBelow != null && TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow);
+                    bool moveMade = tileBelow != null && m_HighlightedTiles.Contains(tileBelow) &&
+                                     TryMovePiece(m_SelectedPiece, m_OriginalTile, tileBelow);
                     if (!moveMade && m_OriginalTile != null)
                     {
                         m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
@@ -216,7 +231,9 @@ public class BoardController : MonoBehaviour
                     }
                 }
                 m_IsDragging = false;
+                ClearHighlights();
                 m_SelectedPiece = null;
+                m_MouseDownPiece = null;
             }
             else if (m_SelectedPiece != null && tileBelow != null && m_HighlightedTiles.Contains(tileBelow))
             {
@@ -225,6 +242,7 @@ public class BoardController : MonoBehaviour
                     ClearHighlights();
                     m_SelectedPiece = null;
                 }
+                m_MouseDownPiece = null;
             }
         }
     }
