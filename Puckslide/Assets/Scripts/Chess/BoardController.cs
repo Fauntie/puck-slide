@@ -41,25 +41,38 @@ public class BoardController : MonoBehaviour
 
     private void OnEnable()
     {
+        Phase2Manager phase2 = FindObjectOfType<Phase2Manager>(true);
+        if (phase2 != null)
+        {
+            phase2.gameObject.SetActive(true);
+            phase2.enabled = true;
+        }
+
         for (int i = m_CapturedPiecesWhiteTransform.childCount - 1; i >= 0; i--)
         {
             Transform child = m_CapturedPiecesWhiteTransform.GetChild(i);
             Destroy(child.gameObject);
         }
-        
+
         for (int i = m_CapturedPiecesBlackTransform.childCount - 1; i >= 0; i--)
         {
             Transform child = m_CapturedPiecesBlackTransform.GetChild(i);
             Destroy(child.gameObject);
         }
-        
+
         EventsManager.OnBoardLayout.AddListener(OnBoardLayout, true);
     }
-    
+
     private void OnDisable()
     {
         EventsManager.OnBoardLayout.RemoveListener(OnBoardLayout);
-        
+
+        Phase2Manager phase2 = FindObjectOfType<Phase2Manager>(true);
+        if (phase2 != null)
+        {
+            phase2.enabled = false;
+        }
+
         Piece[] gamePieces = FindObjectsOfType<Piece>();
         foreach (Piece piece in gamePieces)
         {
