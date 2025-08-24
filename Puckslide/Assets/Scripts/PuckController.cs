@@ -64,6 +64,7 @@ public class PuckController : MonoBehaviour
     private static float s_TileSize;
     private static Vector2 s_BoardOrigin;
     private IEventBus m_EventBus;
+    private IInputSource m_InputSource;
 
     private void Awake()
     {
@@ -78,6 +79,7 @@ public class PuckController : MonoBehaviour
         m_Collider = GetComponent<CircleCollider2D>();
         m_GridManager = FindObjectOfType<GridManager>();
         m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+        m_InputSource = InputSourceBootstrapper.Current;
 
         if (m_Collider != null)
         {
@@ -345,7 +347,7 @@ public class PuckController : MonoBehaviour
             return;
         }
 
-        Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 dragPos = m_Camera.ScreenToWorldPoint(m_InputSource != null ? m_InputSource.GetPointerPosition() : Vector3.zero);
         dragPos.z = 0;
 
         Vector3 puckCenter = transform.position;
@@ -388,7 +390,7 @@ public class PuckController : MonoBehaviour
             return;
         }
 
-        Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(m_InputSource != null ? m_InputSource.GetPointerPosition() : Vector3.zero);
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
         float dragDistance = Mathf.Min(dragVector.magnitude, m_MaxDragDistance);
         Vector2 dragDirection = dragVector.normalized;

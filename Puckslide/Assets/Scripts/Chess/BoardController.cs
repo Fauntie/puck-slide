@@ -40,6 +40,7 @@ public class BoardController : MonoBehaviour
     private Tile m_WhiteCheckTile;
     private Tile m_BlackCheckTile;
     private IEventBus m_EventBus;
+    private IInputSource m_InputSource;
 
     private struct BoardMove
     {
@@ -55,6 +56,7 @@ public class BoardController : MonoBehaviour
     private void Awake()
     {
         m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+        m_InputSource = InputSourceBootstrapper.Current;
     }
 
     private void OnEnable()
@@ -143,9 +145,9 @@ public class BoardController : MonoBehaviour
     private void Update()
     {
         // Mouse down: select piece or handle deselection
-        if (Input.GetMouseButtonDown(0))
+        if (m_InputSource != null && m_InputSource.GetPointerDown())
         {
-            m_MouseDownPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            m_MouseDownPos = Camera.main.ScreenToWorldPoint(m_InputSource.GetPointerPosition());
             m_MouseDownOnPiece = false;
 
             Piece clickedPiece = null;
@@ -180,9 +182,9 @@ public class BoardController : MonoBehaviour
         }
 
         // Mouse drag
-        if (Input.GetMouseButton(0) && m_MouseDownOnPiece)
+        if (m_InputSource != null && m_InputSource.GetPointer() && m_MouseDownOnPiece)
         {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(m_InputSource.GetPointerPosition());
 
             if (!m_IsDragging && Vector3.Distance(mouseWorldPos, m_MouseDownPos) > 0.1f)
             {
@@ -212,9 +214,9 @@ public class BoardController : MonoBehaviour
         }
 
         // Mouse up
-        if (Input.GetMouseButtonUp(0))
+        if (m_InputSource != null && m_InputSource.GetPointerUp())
         {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(m_InputSource.GetPointerPosition());
             RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
             m_MouseDownOnPiece = false;
 
