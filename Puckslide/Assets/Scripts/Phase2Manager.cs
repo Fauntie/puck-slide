@@ -20,6 +20,12 @@ public class Phase2Manager : MonoBehaviour
     private void OnEnable()
     {
         IsPhase2Active = true;
+        // Collect the current puck layout and record it in the GameState
+        // before removing the physical pucks from the board.
+        CollectPucks();
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        gridManager?.UpdatePieceLayout();
+
         // Clear any lingering pucks from the board. Pieces will be spawned
         // from the last recorded layout by the BoardController, so avoid
         // destroying them here.
@@ -31,6 +37,26 @@ public class Phase2Manager : MonoBehaviour
         {
             BoardFlipper.SetBoard(m_BoardTransform, m_GridSize, m_TileSize);
             BoardFlipper.SetFlipOffset(new Vector3(0f, -1f, 0f));
+        }
+    }
+
+    /// <summary>
+    /// Gathers all puck positions on the board and writes them to the
+    /// GameState so Phase 2 can rebuild the layout with chess pieces.
+    /// </summary>
+    private void CollectPucks()
+    {
+        GameState state = GameState.Instance;
+        state.Clear();
+        foreach (PuckController puck in FindObjectsOfType<PuckController>())
+        {
+            // Update each puck's grid position and record it if valid.
+            puck.UpdateGridPosition(m_TileSize, Vector2.zero);
+            Vector2Int pos = puck.CurrentGridPosition;
+            if (pos.x >= 0 && pos.y >= 0)
+            {
+                state.SetPiece(new Position(pos.x, pos.y), puck.ChessPiece);
+            }
         }
     }
 
