@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -42,23 +41,13 @@ public class GridManager : MonoBehaviour
 
     public void UpdatePieceLayout()
     {
-        m_EventBus?.Publish(EventBusEvents.BoardLayout, ConvertLayout(m_GameState.GetLayout()));
+        m_EventBus?.Publish(EventBusEvents.BoardLayout, m_GameState.ToBoardLayoutMessage());
     }
 
     // Rebuild the board layout without altering puck positions.
     public void UpdatePieceLayoutWithoutSnap()
     {
-        m_EventBus?.Publish(EventBusEvents.BoardLayout, ConvertLayout(m_GameState.GetLayout()));
-    }
-
-    private Dictionary<Vector2Int, ChessPiece> ConvertLayout(Dictionary<Position, ChessPiece> layout)
-    {
-        var dict = new Dictionary<Vector2Int, ChessPiece>();
-        foreach (var kvp in layout)
-        {
-            dict[new Vector2Int(kvp.Key.X, kvp.Key.Y)] = kvp.Value;
-        }
-        return dict;
+        m_EventBus?.Publish(EventBusEvents.BoardLayout, m_GameState.ToBoardLayoutMessage());
     }
 
     void OnDrawGizmos()

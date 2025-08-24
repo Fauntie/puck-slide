@@ -74,6 +74,7 @@ public class BoardController : MonoBehaviour
         }
 
         m_EventBus?.Subscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged, true);
+        m_EventBus?.Subscribe<BoardLayoutMessage>(EventBusEvents.BoardLayout, OnBoardLayout, true);
         m_LastMoveWasWhite = null;
         BuildFromState();
     }
@@ -81,6 +82,7 @@ public class BoardController : MonoBehaviour
     private void OnDisable()
     {
         m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
+        m_EventBus?.Unsubscribe<BoardLayoutMessage>(EventBusEvents.BoardLayout, OnBoardLayout);
 
         foreach (Piece piece in m_SpawnedPieces)
         {
@@ -99,6 +101,32 @@ public class BoardController : MonoBehaviour
         {
             HighlightMoves(m_SelectedPiece);
         }
+    }
+
+    private void OnBoardLayout(BoardLayoutMessage message)
+    {
+        GameState.Instance.ApplyBoardLayoutMessage(message);
+
+        foreach (Piece piece in m_SpawnedPieces)
+        {
+            if (piece != null)
+            {
+                Destroy(piece.gameObject);
+            }
+        }
+        m_SpawnedPieces.Clear();
+
+        for (int i = m_CapturedPiecesWhiteTransform.childCount - 1; i >= 0; i--)
+        {
+            Destroy(m_CapturedPiecesWhiteTransform.GetChild(i).gameObject);
+        }
+
+        for (int i = m_CapturedPiecesBlackTransform.childCount - 1; i >= 0; i--)
+        {
+            Destroy(m_CapturedPiecesBlackTransform.GetChild(i).gameObject);
+        }
+
+        BuildFromState();
     }
 
     private void BuildFromState()
