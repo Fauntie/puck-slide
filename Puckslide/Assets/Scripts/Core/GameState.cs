@@ -147,4 +147,39 @@ public class GameState
 #pragma warning restore SYSLIB0011
         }
     }
+
+    public BoardLayoutMessage ToBoardLayoutMessage()
+    {
+        return new BoardLayoutMessage
+        {
+            Board = GetLayout(),
+            CapturedWhite = new List<ChessPiece>(m_CapturedWhite),
+            CapturedBlack = new List<ChessPiece>(m_CapturedBlack),
+            WhiteTurn = m_WhiteTurn
+        };
+    }
+
+    public void ApplyBoardLayoutMessage(BoardLayoutMessage message)
+    {
+        m_Board = message.Board != null
+            ? new Dictionary<Position, ChessPiece>(message.Board)
+            : new Dictionary<Position, ChessPiece>();
+        m_CapturedWhite = message.CapturedWhite != null
+            ? new List<ChessPiece>(message.CapturedWhite)
+            : new List<ChessPiece>();
+        m_CapturedBlack = message.CapturedBlack != null
+            ? new List<ChessPiece>(message.CapturedBlack)
+            : new List<ChessPiece>();
+        m_WhiteTurn = message.WhiteTurn;
+    }
+
+    public static MoveMessage ToMoveMessage(Move move)
+    {
+        return new MoveMessage { From = move.From, To = move.To };
+    }
+
+    public static Move FromMoveMessage(MoveMessage message)
+    {
+        return new Move(message.From, message.To);
+    }
 }
