@@ -9,6 +9,12 @@ public class GridManager : MonoBehaviour
     [SerializeField] private Vector2 m_GridOrigin = Vector2.zero; // Bottom-left of the grid
     public Vector2 GridOrigin => m_GridOrigin;
     private GameState m_GameState => GameState.Instance;
+    private IEventBus m_EventBus;
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
 
     private void Update()
     {
@@ -36,13 +42,13 @@ public class GridManager : MonoBehaviour
 
     public void UpdatePieceLayout()
     {
-        EventsManager.OnBoardLayout.Invoke(ConvertLayout(m_GameState.GetLayout()));
+        m_EventBus?.Publish(EventBusEvents.BoardLayout, ConvertLayout(m_GameState.GetLayout()));
     }
 
     // Rebuild the board layout without altering puck positions.
     public void UpdatePieceLayoutWithoutSnap()
     {
-        EventsManager.OnBoardLayout.Invoke(ConvertLayout(m_GameState.GetLayout()));
+        m_EventBus?.Publish(EventBusEvents.BoardLayout, ConvertLayout(m_GameState.GetLayout()));
     }
 
     private Dictionary<Vector2Int, ChessPiece> ConvertLayout(Dictionary<Position, ChessPiece> layout)

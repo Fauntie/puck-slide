@@ -43,11 +43,16 @@ public class GameSetupManager : MonoBehaviour
     private GameObject m_Phase1Canvas;
     [SerializeField]
     private GameObject Phase1Environment;
-    
+    private IEventBus m_EventBus;
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
 
     private void OnEnable()
     {
-        EventsManager.OnDeletePucks.Invoke(true);
+        m_EventBus?.Publish(EventBusEvents.DeletePucks, true);
         PuckController.ResetTurnOrder();
 
         m_PieceSetup = new PieceSetupData[]
@@ -63,7 +68,7 @@ public class GameSetupManager : MonoBehaviour
 
     public void StartButton()
     {
-        EventsManager.OnPieceSetupData.Invoke(m_PieceSetup);
+        m_EventBus?.Publish(EventBusEvents.PieceSetupData, m_PieceSetup);
         m_Phase1Canvas.SetActive(true);
         Phase1Environment.SetActive(true);
         gameObject.SetActive(false);

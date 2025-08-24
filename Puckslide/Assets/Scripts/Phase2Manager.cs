@@ -16,6 +16,12 @@ public class Phase2Manager : MonoBehaviour
     /// Indicates whether Phase 2 gameplay is currently active.
     /// </summary>
     public static bool IsPhase2Active { get; private set; }
+    private IEventBus m_EventBus;
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
 
     private void OnEnable()
     {
@@ -28,7 +34,7 @@ public class Phase2Manager : MonoBehaviour
         // expanded board becomes active. Use the delete event so pucks clean up
         // themselves and yield one frame so the destruction is processed before
         // rebuilding the board.
-        EventsManager.OnDeletePucks.Invoke(true);
+        m_EventBus?.Publish(EventBusEvents.DeletePucks, true);
         StartCoroutine(RebuildBoardNextFrame());
     }
 
