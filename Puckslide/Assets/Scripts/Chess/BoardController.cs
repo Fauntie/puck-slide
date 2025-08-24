@@ -33,7 +33,6 @@ public class BoardController : MonoBehaviour
     private bool? m_LastMoveWasWhite = null;
 
     private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
-    private readonly List<Piece> m_SpawnedPieces = new List<Piece>();
     private bool m_IsDragging = false;
     private bool m_MouseDownOnPiece = false;
     private Vector3 m_MouseDownPos;
@@ -83,15 +82,17 @@ public class BoardController : MonoBehaviour
     {
         m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
         m_EventBus?.Unsubscribe<BoardLayoutMessage>(EventBusEvents.BoardLayout, OnBoardLayout);
-
-        foreach (Piece piece in m_SpawnedPieces)
+        var registry = PieceRegistry.Instance;
+        if (registry != null)
         {
-            if (piece != null)
+            foreach (Piece piece in registry.GetPieces())
             {
-                Destroy(piece.gameObject);
+                if (piece != null)
+                {
+                    Destroy(piece.gameObject);
+                }
             }
         }
-        m_SpawnedPieces.Clear();
     }
 
     private void OnTurnChanged(bool _)
@@ -106,15 +107,17 @@ public class BoardController : MonoBehaviour
     private void OnBoardLayout(BoardLayoutMessage message)
     {
         GameState.Instance.ApplyBoardLayoutMessage(message);
-
-        foreach (Piece piece in m_SpawnedPieces)
+        var registry = PieceRegistry.Instance;
+        if (registry != null)
         {
-            if (piece != null)
+            foreach (Piece piece in registry.GetPieces())
             {
-                Destroy(piece.gameObject);
+                if (piece != null)
+                {
+                    Destroy(piece.gameObject);
+                }
             }
         }
-        m_SpawnedPieces.Clear();
 
         for (int i = m_CapturedPiecesWhiteTransform.childCount - 1; i >= 0; i--)
         {
@@ -156,7 +159,6 @@ public class BoardController : MonoBehaviour
                     tile.SetPiece(pieceScript);
                     pieceScript.SetTile(tile);
                     pieceScript.transform.SetParent(tile.transform);
-                    m_SpawnedPieces.Add(pieceScript);
                 }
                 else
                 {
@@ -444,7 +446,6 @@ public class BoardController : MonoBehaviour
                         isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
                     .GetComponent<CapturedPieceUi>();
             capUi.SetupCapturedUiPiece(capturedPiece.GetChessPiece());
-            m_SpawnedPieces.Remove(capturedPiece);
             Destroy(capturedPiece.gameObject);
         }
 
