@@ -7,10 +7,17 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 
 [DataContract]
+public struct BoardEntry
+{
+    [DataMember] public Position Pos;
+    [DataMember] public ChessPiece Piece;
+}
+
+[DataContract]
 public class BoardLayoutMessage
 {
     [DataMember]
-    public Dictionary<Position, ChessPiece> Board { get; set; }
+    public List<BoardEntry> Board { get; set; }
 
     [DataMember]
     public List<ChessPiece> CapturedWhite { get; set; }

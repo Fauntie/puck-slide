@@ -150,9 +150,15 @@ public class GameState
 
     public BoardLayoutMessage ToBoardLayoutMessage()
     {
+        var entries = new List<BoardEntry>();
+        foreach (var kvp in m_Board)
+        {
+            entries.Add(new BoardEntry { Pos = kvp.Key, Piece = kvp.Value });
+        }
+
         return new BoardLayoutMessage
         {
-            Board = GetLayout(),
+            Board = entries,
             CapturedWhite = new List<ChessPiece>(m_CapturedWhite),
             CapturedBlack = new List<ChessPiece>(m_CapturedBlack),
             WhiteTurn = m_WhiteTurn
@@ -161,9 +167,14 @@ public class GameState
 
     public void ApplyBoardLayoutMessage(BoardLayoutMessage message)
     {
-        m_Board = message.Board != null
-            ? new Dictionary<Position, ChessPiece>(message.Board)
-            : new Dictionary<Position, ChessPiece>();
+        m_Board = new Dictionary<Position, ChessPiece>();
+        if (message.Board != null)
+        {
+            foreach (var entry in message.Board)
+            {
+                m_Board[entry.Pos] = entry.Piece;
+            }
+        }
         m_CapturedWhite = message.CapturedWhite != null
             ? new List<ChessPiece>(message.CapturedWhite)
             : new List<ChessPiece>();
