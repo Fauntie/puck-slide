@@ -44,8 +44,6 @@ public class PuckController : MonoBehaviour
 
     [SerializeField]
     private float m_MaxLineWidth = 0.3f;
-    private static bool s_IsWhiteTurn = true;
-    private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
     // Entry lines for both sides of the board.
@@ -65,6 +63,7 @@ public class PuckController : MonoBehaviour
     private static Vector2 s_BoardOrigin;
     private IEventBus m_EventBus;
     private IInputSource m_InputSource;
+    private TurnManager m_TurnManager;
 
     private void Awake()
     {
@@ -80,6 +79,7 @@ public class PuckController : MonoBehaviour
         m_GridManager = FindObjectOfType<GridManager>();
         m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
         m_InputSource = InputSourceBootstrapper.Current;
+        m_TurnManager = TurnManager.Instance;
 
         if (m_Collider != null)
         {
@@ -203,9 +203,9 @@ public class PuckController : MonoBehaviour
         m_EventBus?.Unsubscribe<bool>(EventBusEvents.DeletePucks, OnDelete);
         m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
         m_EventBus?.Publish(EventBusEvents.PuckDespawned, m_Rigidbody);
-        if (s_ActivePuck == this)
+        if (m_TurnManager.ActivePuck == this)
         {
-            s_ActivePuck = null;
+            m_TurnManager.ActivePuck = null;
         }
     }
 
@@ -293,14 +293,14 @@ public class PuckController : MonoBehaviour
     private void OnMouseDown()
     {
 
-        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+        if (IsWhitePiece != m_TurnManager.IsWhiteTurn || (m_TurnManager.ActivePuck != null && m_TurnManager.ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
 
         {
             m_IsSelected = false;
             return;
         }
 
-        s_ActivePuck = this;
+        m_TurnManager.ActivePuck = this;
         m_IsSelected = true;
         m_StartPosition = transform.position;
         if (m_IsSticky && m_Rigidbody.bodyType == RigidbodyType2D.Static)
@@ -470,8 +470,7 @@ public class PuckController : MonoBehaviour
 
         if (m_HasReachedBoard)
         {
-            s_ActivePuck = null;
-            s_IsWhiteTurn = !s_IsWhiteTurn;
+            m_TurnManager.EndTurn();
             if (Phase2Manager.IsPhase2Active)
             {
                 BoardFlipper.FlipCamera();
@@ -480,7 +479,6 @@ public class PuckController : MonoBehaviour
             {
                 BoardFlipper.Flip();
             }
-            m_EventBus?.Publish(EventBusEvents.TurnChanged, s_IsWhiteTurn);
         }
         else
         {
@@ -511,14 +509,6 @@ public class PuckController : MonoBehaviour
     public ChessPiece ChessPiece { get; private set; }
 
     public bool IsWhitePiece => (int)ChessPiece >= 6;
-
-    public static bool IsWhiteTurn => s_IsWhiteTurn;
-
-    public static void ResetTurnOrder()
-    {
-        s_IsWhiteTurn = true; // Start with white's turn
-        m_EventBus?.Publish(EventBusEvents.TurnChanged, s_IsWhiteTurn);
-    }
 
     private static void EnsureTileMap()
     {
