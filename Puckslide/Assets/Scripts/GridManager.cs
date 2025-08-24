@@ -30,7 +30,8 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator SnapPucksOneByOne(float delay)
     {
-        PuckController[] pucks = FindObjectsOfType<PuckController>();
+        PuckRegistry registry = PuckRegistry.Instance;
+        PuckController[] pucks = registry != null ? registry.GetPucks() : Array.Empty<PuckController>();
 
         foreach (PuckController puck in pucks)
         {

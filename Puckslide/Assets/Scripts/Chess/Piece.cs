@@ -17,6 +17,7 @@ public class Piece : MonoBehaviour
 
     private Tile m_CurrentTile;
     private ChessPiece m_ChessPiece;
+    private IEventBus m_EventBus;
     
     public Tile GetCurrentTile() => m_CurrentTile;
     public void SetTile(Tile tile) => m_CurrentTile = tile;
@@ -46,5 +47,20 @@ public class Piece : MonoBehaviour
     public bool IsPawn()
     {
         return m_ChessPiece is ChessPiece.B_Pawn or ChessPiece.W_Pawn;
+    }
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
+
+    private void OnEnable()
+    {
+        m_EventBus?.Publish(EventBusEvents.PieceSpawned, this);
+    }
+
+    private void OnDisable()
+    {
+        m_EventBus?.Publish(EventBusEvents.PieceDespawned, this);
     }
 }
