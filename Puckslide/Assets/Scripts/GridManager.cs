@@ -7,7 +7,7 @@ public class GridManager : MonoBehaviour
 {
     [SerializeField] private float m_TileSize = 1f; // Match this to your tile size
     [SerializeField] private Vector2 m_GridOrigin = Vector2.zero; // Bottom-left of the grid
-    private Dictionary<Vector2Int, ChessPiece> m_PieceLayout = new Dictionary<Vector2Int, ChessPiece>();
+    private GameState m_GameState => GameState.Instance;
 
     private void Update()
     {
@@ -24,7 +24,7 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator SnapPucksOneByOne(float delay)
     {
-        PuckController[] pucks = FindObjectsOfType<PuckController>();
+        PuckController[] pucks = GetComponentsInChildren<PuckController>();
 
         foreach (PuckController puck in pucks)
         {
@@ -35,58 +35,23 @@ public class GridManager : MonoBehaviour
 
     public void UpdatePieceLayout()
     {
-        m_PieceLayout.Clear(); // Clear the layout before recalculating
-
-        // Find all pucks in the scene
-        PuckController[] pucks = FindObjectsOfType<PuckController>();
-
-        foreach (PuckController puck in pucks)
-        {
-            puck.SnapToGrid(m_TileSize, m_GridOrigin);
-        }
-        
-        foreach (PuckController puck in pucks)
-        {
-            // Update each puck's grid position
-            puck.UpdateGridPosition(m_TileSize, m_GridOrigin);
-
-            if (puck.CurrentGridPosition != new Vector2Int(-1, -1))
-            {
-                if (m_PieceLayout.ContainsKey(puck.CurrentGridPosition))
-                {
-                    Debug.LogWarning($"Duplicate piece at {puck.CurrentGridPosition} replaced.");
-                }
-                m_PieceLayout[puck.CurrentGridPosition] = puck.ChessPiece;
-            }
-        }
-        
-        EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
+        EventsManager.OnBoardLayout.Invoke(ConvertLayout(m_GameState.GetLayout()));
     }
 
     // Rebuild the board layout without altering puck positions.
     public void UpdatePieceLayoutWithoutSnap()
     {
-        m_PieceLayout.Clear();
+        EventsManager.OnBoardLayout.Invoke(ConvertLayout(m_GameState.GetLayout()));
+    }
 
-        // Find all pucks in the scene
-        PuckController[] pucks = FindObjectsOfType<PuckController>();
-
-        foreach (PuckController puck in pucks)
+    private Dictionary<Vector2Int, ChessPiece> ConvertLayout(Dictionary<Position, ChessPiece> layout)
+    {
+        var dict = new Dictionary<Vector2Int, ChessPiece>();
+        foreach (var kvp in layout)
         {
-            // Update each puck's grid position based on its current location
-            puck.UpdateGridPosition(m_TileSize, m_GridOrigin);
-
-            if (puck.CurrentGridPosition != new Vector2Int(-1, -1))
-            {
-                if (m_PieceLayout.ContainsKey(puck.CurrentGridPosition))
-                {
-                    Debug.LogWarning($"Duplicate piece at {puck.CurrentGridPosition} replaced.");
-                }
-                m_PieceLayout[puck.CurrentGridPosition] = puck.ChessPiece;
-            }
+            dict[new Vector2Int(kvp.Key.X, kvp.Key.Y)] = kvp.Value;
         }
-
-        EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
+        return dict;
     }
 
     void OnDrawGizmos()
