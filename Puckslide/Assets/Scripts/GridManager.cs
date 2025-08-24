@@ -24,7 +24,7 @@ public class GridManager : MonoBehaviour
 
     private IEnumerator SnapPucksOneByOne(float delay)
     {
-        PuckController[] pucks = GetComponentsInChildren<PuckController>();
+        PuckController[] pucks = FindObjectsOfType<PuckController>();
 
         foreach (PuckController puck in pucks)
         {
