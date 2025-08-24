@@ -20,16 +20,18 @@ public class Phase2Manager : MonoBehaviour
     private void OnEnable()
     {
         IsPhase2Active = true;
-        // Collect the current puck layout and record it in the GameState
-        // before removing the physical pucks from the board.
+        // Record the current puck layout before we remove the physical pucks
+        // from the board.
         CollectPucks();
+
+        // Destroy any existing pucks so only Phase 2 pieces remain when the
+        // expanded board becomes active.
+        EventsManager.OnDeletePucks.Invoke(true);
+
+        // Rebuild the board with Phase 2 chess pieces based on the recorded
+        // layout.
         GridManager gridManager = FindObjectOfType<GridManager>();
         gridManager?.UpdatePieceLayout();
-
-        // Clear any lingering pucks from the board. Pieces will be spawned
-        // from the last recorded layout by the BoardController, so avoid
-        // destroying them here.
-        EventsManager.OnDeletePucks.Invoke(true);
 
         // Ensure the BoardFlipper knows about the Phase 2 board so pieces
         // remain aligned when the board is rotated.
