@@ -68,7 +68,10 @@
     <Compile Include="Assets\Scripts\Chess\BoardController.cs" />
     <Compile Include="Assets\Scripts\GridGenerator.cs" />
     <Compile Include="Assets\Scripts\UI\Phase1PieceButton.cs" />
-    <Compile Include="Assets\Scripts\Util\EventsManager.cs" />
+    <Compile Include="Assets\Scripts\Util\IEventBus.cs" />
+    <Compile Include="Assets\Scripts\Util\LocalEventBus.cs" />
+    <Compile Include="Assets\Scripts\Util\EventBusEvents.cs" />
+    <Compile Include="Assets\Scripts\Util\EventBusBootstrap.cs" />
     <Compile Include="Assets\Scripts\OneWayWall.cs" />
     <Compile Include="Assets\Scripts\Chess\PromotionPanel.cs" />
   </ItemGroup>

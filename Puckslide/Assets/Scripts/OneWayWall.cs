@@ -9,17 +9,23 @@ public class OneWayWall : MonoBehaviour
     private int oneWayWallLayer; // Layer for the one-way wall
 
     private readonly List<Rigidbody2D> m_Pucks = new List<Rigidbody2D>();
+    private IEventBus m_EventBus;
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
 
     private void OnEnable()
     {
-        EventsManager.OnPuckSpawned.AddListener(RegisterPuck);
-        EventsManager.OnPuckDespawned.AddListener(UnregisterPuck);
+        m_EventBus?.Subscribe<Rigidbody2D>(EventBusEvents.PuckSpawned, RegisterPuck);
+        m_EventBus?.Subscribe<Rigidbody2D>(EventBusEvents.PuckDespawned, UnregisterPuck);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnPuckSpawned.RemoveListener(RegisterPuck);
-        EventsManager.OnPuckDespawned.RemoveListener(UnregisterPuck);
+        m_EventBus?.Unsubscribe<Rigidbody2D>(EventBusEvents.PuckSpawned, RegisterPuck);
+        m_EventBus?.Unsubscribe<Rigidbody2D>(EventBusEvents.PuckDespawned, UnregisterPuck);
         m_Pucks.Clear();
     }
 

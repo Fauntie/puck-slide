@@ -39,6 +39,7 @@ public class BoardController : MonoBehaviour
     private Vector3 m_MouseDownPos;
     private Tile m_WhiteCheckTile;
     private Tile m_BlackCheckTile;
+    private IEventBus m_EventBus;
 
     private struct BoardMove
     {
@@ -49,6 +50,11 @@ public class BoardController : MonoBehaviour
             From = from;
             To = to;
         }
+    }
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
     }
 
     private void OnEnable()
@@ -65,14 +71,14 @@ public class BoardController : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        m_EventBus?.Subscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged, true);
         m_LastMoveWasWhite = null;
         BuildFromState();
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
 
         foreach (Piece piece in m_SpawnedPieces)
         {
@@ -422,7 +428,7 @@ public class BoardController : MonoBehaviour
 
         m_LastMoveWasWhite = piece.IsWhite();
         BoardFlipper.FlipCamera();
-        EventsManager.OnTurnChanged.Invoke(!m_LastMoveWasWhite.Value);
+        m_EventBus?.Publish(EventBusEvents.TurnChanged, !m_LastMoveWasWhite.Value);
 
         // Highlight the king if it has been put in check by the latest move
         UpdateCheckHighlights();
@@ -567,16 +573,16 @@ public class BoardController : MonoBehaviour
         {
             if (inCheck)
             {
-                EventsManager.OnGameState.Invoke("checkmate");
+                m_EventBus?.Publish(EventBusEvents.GameState, "checkmate");
             }
             else
             {
-                EventsManager.OnGameState.Invoke("draw");
+                m_EventBus?.Publish(EventBusEvents.GameState, "draw");
             }
         }
         else if (inCheck)
         {
-            EventsManager.OnGameState.Invoke("check");
+            m_EventBus?.Publish(EventBusEvents.GameState, "check");
         }
     }
 }

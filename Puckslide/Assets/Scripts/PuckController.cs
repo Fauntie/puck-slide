@@ -63,6 +63,7 @@ public class PuckController : MonoBehaviour
     private static Dictionary<Vector2Int, Tile> s_TileMap;
     private static float s_TileSize;
     private static Vector2 s_BoardOrigin;
+    private IEventBus m_EventBus;
 
     private void Awake()
     {
@@ -76,6 +77,7 @@ public class PuckController : MonoBehaviour
         m_PuckFriction = GetComponent<PuckFriction>();
         m_Collider = GetComponent<CircleCollider2D>();
         m_GridManager = FindObjectOfType<GridManager>();
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
 
         if (m_Collider != null)
         {
@@ -189,16 +191,16 @@ public class PuckController : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnDeletePucks.AddListener(OnDelete);
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
-        EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
+        m_EventBus?.Subscribe<bool>(EventBusEvents.DeletePucks, OnDelete);
+        m_EventBus?.Subscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged, true);
+        m_EventBus?.Publish(EventBusEvents.PuckSpawned, m_Rigidbody);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnDeletePucks.RemoveListener(OnDelete);
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
-        EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
+        m_EventBus?.Unsubscribe<bool>(EventBusEvents.DeletePucks, OnDelete);
+        m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
+        m_EventBus?.Publish(EventBusEvents.PuckDespawned, m_Rigidbody);
         if (s_ActivePuck == this)
         {
             s_ActivePuck = null;
@@ -476,7 +478,7 @@ public class PuckController : MonoBehaviour
             {
                 BoardFlipper.Flip();
             }
-            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+            m_EventBus?.Publish(EventBusEvents.TurnChanged, s_IsWhiteTurn);
         }
         else
         {
@@ -513,7 +515,7 @@ public class PuckController : MonoBehaviour
     public static void ResetTurnOrder()
     {
         s_IsWhiteTurn = true; // Start with white's turn
-        EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+        m_EventBus?.Publish(EventBusEvents.TurnChanged, s_IsWhiteTurn);
     }
 
     private static void EnsureTileMap()

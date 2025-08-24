@@ -27,16 +27,22 @@ public class Phase1PieceButton : MonoBehaviour
 
     private int m_PieceCount = 0;
     private bool m_IsSticky;
-    
+    private IEventBus m_EventBus;
+
+    private void Awake()
+    {
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
+
     private void OnEnable()
     {
-        EventsManager.OnPieceSetupData.AddListener(OnPieceSetup, true);
+        m_EventBus?.Subscribe<PieceSetupData[]>(EventBusEvents.PieceSetupData, OnPieceSetup, true);
         m_Button.onClick.AddListener(OnButtonPress);
     }
-    
+
     private void OnDisable()
     {
-        EventsManager.OnPieceSetupData.RemoveListener(OnPieceSetup);
+        m_EventBus?.Unsubscribe<PieceSetupData[]>(EventBusEvents.PieceSetupData, OnPieceSetup);
         m_Button.onClick.RemoveListener(OnButtonPress);
         m_PieceCount = 0;
         m_PieceCountText.text = "X 0";

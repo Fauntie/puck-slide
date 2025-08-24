@@ -8,6 +8,7 @@ public class TurnIndicator : MonoBehaviour
 
     [SerializeField]
     private Vector3 m_Offset = new Vector3(0f, 0f, -0.1f);
+    private IEventBus m_EventBus;
 
     private void Awake()
     {
@@ -15,6 +16,7 @@ public class TurnIndicator : MonoBehaviour
         {
             m_Text = GetComponent<TextMeshPro>();
         }
+        m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
     }
 
     private void Start()
@@ -30,12 +32,12 @@ public class TurnIndicator : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged);
+        m_EventBus?.Subscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        m_EventBus?.Unsubscribe<bool>(EventBusEvents.TurnChanged, OnTurnChanged);
     }
 
     private void OnTurnChanged(bool isWhiteTurn)
