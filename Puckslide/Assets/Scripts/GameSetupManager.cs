@@ -53,7 +53,7 @@ public class GameSetupManager : MonoBehaviour
     private void OnEnable()
     {
         m_EventBus?.Publish(EventBusEvents.DeletePucks, true);
-        PuckController.ResetTurnOrder();
+        TurnManager.Instance.BeginTurn(PlayerColor.White);
 
         m_PieceSetup = new PieceSetupData[]
         {

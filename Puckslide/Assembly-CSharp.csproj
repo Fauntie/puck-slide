@@ -57,6 +57,7 @@
   <ItemGroup>
     <Compile Include="Assets\Scripts\Phase2Manager.cs" />
     <Compile Include="Assets\Scripts\PuckController.cs" />
+    <Compile Include="Assets\Scripts\Core\TurnManager.cs" />
     <Compile Include="Assets\Scripts\Chess\CapturedPieceUi.cs" />
     <Compile Include="Assets\Scripts\PuckFriction.cs" />
     <Compile Include="Assets\Scripts\Chess\Tile.cs" />
