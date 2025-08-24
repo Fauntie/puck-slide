@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization.Json;
 using System.Text;
 
@@ -60,26 +59,4 @@ public static class MessageSerializer
         }
     }
 
-    public static byte[] ToBinary<T>(T obj)
-    {
-        using (var ms = new MemoryStream())
-        {
-            var bf = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            bf.Serialize(ms, obj);
-#pragma warning restore SYSLIB0011
-            return ms.ToArray();
-        }
-    }
-
-    public static T FromBinary<T>(byte[] data)
-    {
-        using (var ms = new MemoryStream(data))
-        {
-            var bf = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            return (T)bf.Deserialize(ms);
-#pragma warning restore SYSLIB0011
-        }
-    }
 }

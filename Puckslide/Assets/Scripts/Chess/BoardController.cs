@@ -8,6 +8,7 @@ public class RowData
     public Tile[] m_Row;
 }
 
+[DefaultExecutionOrder(100)]
 public class BoardController : MonoBehaviour
 {
     [SerializeField]
@@ -55,7 +56,15 @@ public class BoardController : MonoBehaviour
     private void Awake()
     {
         m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
+    }
+
+    private void Start()
+    {
         m_InputSource = InputSourceBootstrapper.Current;
+        if (m_InputSource == null)
+        {
+            Debug.LogWarning("BoardController missing input source. Ensure InputSourceBootstrapper is initialized first.", this);
+        }
     }
 
     private void OnEnable()
@@ -107,6 +116,8 @@ public class BoardController : MonoBehaviour
     private void OnBoardLayout(BoardLayoutMessage message)
     {
         GameState.Instance.ApplyBoardLayoutMessage(message);
+        TurnManager.Instance.BeginTurn(message.WhiteTurn ? PlayerColor.White : PlayerColor.Black);
+        m_EventBus?.Publish(EventBusEvents.TurnChanged, message.WhiteTurn);
         var registry = PieceRegistry.Instance;
         if (registry != null)
         {
@@ -174,8 +185,17 @@ public class BoardController : MonoBehaviour
 
     private void Update()
     {
+        if (m_InputSource == null)
+        {
+            m_InputSource = InputSourceBootstrapper.Current;
+            if (m_InputSource == null)
+            {
+                return;
+            }
+        }
+
         // Mouse down: select piece or handle deselection
-        if (m_InputSource != null && m_InputSource.GetPointerDown())
+        if (m_InputSource.GetPointerDown())
         {
             m_MouseDownPos = Camera.main.ScreenToWorldPoint(m_InputSource.GetPointerPosition());
             m_MouseDownOnPiece = false;
