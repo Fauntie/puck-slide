@@ -26,6 +26,7 @@ public class Phase2Manager : MonoBehaviour
 
         // Destroy any existing pucks so only Phase 2 pieces remain when the
         // expanded board becomes active.
+
         foreach (PuckController puck in FindObjectsOfType<PuckController>(true))
         {
             Destroy(puck.gameObject);
@@ -39,6 +40,12 @@ public class Phase2Manager : MonoBehaviour
             board.enabled = false;
             board.enabled = true;
         }
+
+
+        // Rebuild the board with Phase 2 chess pieces based on the recorded
+        // layout.
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        gridManager?.UpdatePieceLayout();
 
         // Ensure the BoardFlipper knows about the Phase 2 board so pieces
         // remain aligned when the board is rotated.
