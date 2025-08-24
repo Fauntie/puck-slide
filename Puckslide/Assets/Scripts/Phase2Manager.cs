@@ -25,35 +25,11 @@ public class Phase2Manager : MonoBehaviour
         CollectPucks();
 
         // Destroy any existing pucks so only Phase 2 pieces remain when the
-        // expanded board becomes active.
-
-        foreach (PuckController puck in FindObjectsOfType<PuckController>(true))
-        {
-            Destroy(puck.gameObject);
-        }
-
-        // Rebuild the board with Phase 2 chess pieces based on the recorded
-        // layout.
-        BoardController board = FindObjectOfType<BoardController>();
-        if (board != null)
-        {
-            board.enabled = false;
-            board.enabled = true;
-        }
-
-
-        // Rebuild the board with Phase 2 chess pieces based on the recorded
-        // layout.
-        GridManager gridManager = FindObjectOfType<GridManager>();
-        gridManager?.UpdatePieceLayout();
-
-        // Ensure the BoardFlipper knows about the Phase 2 board so pieces
-        // remain aligned when the board is rotated.
-        if (m_BoardTransform != null)
-        {
-            BoardFlipper.SetBoard(m_BoardTransform, m_GridSize, m_TileSize);
-            BoardFlipper.SetFlipOffset(new Vector3(0f, -1f, 0f));
-        }
+        // expanded board becomes active. Use the delete event so pucks clean up
+        // themselves and yield one frame so the destruction is processed before
+        // rebuilding the board.
+        EventsManager.OnDeletePucks.Invoke(true);
+        StartCoroutine(RebuildBoardNextFrame());
     }
 
     /// <summary>
@@ -74,6 +50,30 @@ public class Phase2Manager : MonoBehaviour
             {
                 state.SetPiece(new Position(pos.x, pos.y), puck.ChessPiece);
             }
+        }
+    }
+
+    private IEnumerator RebuildBoardNextFrame()
+    {
+        // Allow time for pucks to be destroyed before rebuilding with chess pieces.
+        yield return null;
+
+        // Rebuild the board with Phase 2 chess pieces based on the recorded layout.
+        BoardController board = FindObjectOfType<BoardController>();
+        if (board != null)
+        {
+            board.enabled = false;
+            board.enabled = true;
+        }
+
+        GridManager gridManager = FindObjectOfType<GridManager>();
+        gridManager?.UpdatePieceLayout();
+
+        // Ensure the BoardFlipper knows about the Phase 2 board so pieces remain aligned when the board is rotated.
+        if (m_BoardTransform != null)
+        {
+            BoardFlipper.SetBoard(m_BoardTransform, m_GridSize, m_TileSize);
+            BoardFlipper.SetFlipOffset(new Vector3(0f, -1f, 0f));
         }
     }
 
