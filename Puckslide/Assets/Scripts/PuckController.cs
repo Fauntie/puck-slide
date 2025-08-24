@@ -63,7 +63,6 @@ public class PuckController : MonoBehaviour
     private static float s_TileSize;
     private static Vector2 s_BoardOrigin;
     private IEventBus m_EventBus;
-    private IInputSource m_InputSource;
     private TurnManager m_TurnManager;
 
     private void Awake()
@@ -193,8 +192,7 @@ public class PuckController : MonoBehaviour
 
     private void Start()
     {
-        m_InputSource = InputSourceBootstrapper.Current;
-        if (m_InputSource == null)
+        if (InputSourceBootstrapper.Current == null)
         {
             Debug.LogWarning("PuckController missing input source. Ensure InputSourceBootstrapper is initialized first.", this);
         }
@@ -239,6 +237,33 @@ public class PuckController : MonoBehaviour
             {
                 m_Rigidbody.bodyType = RigidbodyType2D.Static;
             }
+        }
+
+        IInputSource input = InputSourceBootstrapper.Current;
+        if (input == null)
+        {
+            return;
+        }
+
+        bool pointerDown = input.GetPointerDown();
+        bool pointer = input.GetPointer();
+        bool pointerUp = input.GetPointerUp();
+        Vector3 pointerWorld = m_Camera.ScreenToWorldPoint(input.GetPointerPosition());
+        pointerWorld.z = 0f;
+
+        if (pointerDown)
+        {
+            HandlePointerDown(pointerWorld);
+        }
+
+        if (m_IsSelected && pointer)
+        {
+            HandlePointerDrag(pointerWorld);
+        }
+
+        if (m_IsSelected && pointerUp)
+        {
+            HandlePointerUp(pointerWorld);
         }
     }
 
@@ -299,11 +324,14 @@ public class PuckController : MonoBehaviour
         m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
     }
 
-    private void OnMouseDown()
+    private void HandlePointerDown(Vector3 worldPos)
     {
+        if (m_Collider != null && !m_Collider.OverlapPoint(worldPos))
+        {
+            return;
+        }
 
         if (IsWhitePiece != m_TurnManager.IsWhiteTurn || (m_TurnManager.ActivePuck != null && m_TurnManager.ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
-
         {
             m_IsSelected = false;
             return;
@@ -318,7 +346,7 @@ public class PuckController : MonoBehaviour
         }
 
         m_DragStartPos = transform.position;
-        
+
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
@@ -349,15 +377,12 @@ public class PuckController : MonoBehaviour
         HighlightLegalMoves();
     }
 
-    private void OnMouseDrag()
+    private void HandlePointerDrag(Vector3 dragPos)
     {
         if (!m_IsSelected)
         {
             return;
         }
-
-        Vector3 dragPos = m_Camera.ScreenToWorldPoint(m_InputSource != null ? m_InputSource.GetPointerPosition() : Vector3.zero);
-        dragPos.z = 0;
 
         Vector3 puckCenter = transform.position;
         puckCenter.z = 0;
@@ -392,15 +417,14 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    private void OnMouseUp()
+    private void HandlePointerUp(Vector3 dragEndPos)
     {
         if (!m_IsSelected)
         {
             return;
         }
 
-        Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(m_InputSource != null ? m_InputSource.GetPointerPosition() : Vector3.zero);
-        Vector2 dragVector = (m_DragStartPos - dragEndPos);
+        Vector2 dragVector = (Vector2)(m_DragStartPos - dragEndPos);
         float dragDistance = Mathf.Min(dragVector.magnitude, m_MaxDragDistance);
         Vector2 dragDirection = dragVector.normalized;
         float powerRatio = dragDistance / m_MaxDragDistance;
@@ -503,6 +527,7 @@ public class PuckController : MonoBehaviour
         // Rebuild the board layout without altering puck positions so pucks
         // remain exactly where they stopped. Snapping to grid now happens only
         // when triggered explicitly (e.g. via the snap button).
+        UpdateGridPosition(s_TileSize, s_BoardOrigin);
         m_GridManager?.UpdatePieceLayoutWithoutSnap();
     }
 
@@ -514,7 +539,7 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck
+    public Vector2Int CurrentGridPosition { get; private set; } = new Vector2Int(-1, -1); // Store the grid position of this puck
     public ChessPiece ChessPiece { get; private set; }
 
     public bool IsWhitePiece => (int)ChessPiece >= 6;
@@ -796,5 +821,6 @@ public class PuckController : MonoBehaviour
         transform.position = new Vector2(centerX, centerY);
 
         m_Rigidbody.velocity = Vector2.zero;
+        UpdateGridPosition(tileSize, gridOrigin);
     }
 }

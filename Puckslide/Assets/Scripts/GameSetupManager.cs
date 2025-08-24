@@ -83,11 +83,21 @@ public class GameSetupManager : MonoBehaviour
             {
                 if (isWhite)
                 {
-                    m_PieceSetup[i].WhiteCount++;
+                    if (m_PieceSetup[i].WhiteCount >= MAX_PIECES_PER_COLOR)
+                    {
+                        Debug.LogWarning("White piece count cannot exceed max per color");
+                        return;
+                    }
+                    m_PieceSetup[i].WhiteCount = Mathf.Clamp(m_PieceSetup[i].WhiteCount + 1, 0, MAX_PIECES_PER_COLOR);
                 }
                 else
                 {
-                    m_PieceSetup[i].BlackCount++;
+                    if (m_PieceSetup[i].BlackCount >= MAX_PIECES_PER_COLOR)
+                    {
+                        Debug.LogWarning("Black piece count cannot exceed max per color");
+                        return;
+                    }
+                    m_PieceSetup[i].BlackCount = Mathf.Clamp(m_PieceSetup[i].BlackCount + 1, 0, MAX_PIECES_PER_COLOR);
                 }
                 return;
             }
@@ -104,11 +114,21 @@ public class GameSetupManager : MonoBehaviour
             {
                 if (isWhite)
                 {
-                    m_PieceSetup[i].WhiteCount--;
+                    if (m_PieceSetup[i].WhiteCount <= 0)
+                    {
+                        Debug.LogWarning("White piece count cannot go below zero");
+                        return;
+                    }
+                    m_PieceSetup[i].WhiteCount = Mathf.Clamp(m_PieceSetup[i].WhiteCount - 1, 0, MAX_PIECES_PER_COLOR);
                 }
                 else
                 {
-                    m_PieceSetup[i].BlackCount--;
+                    if (m_PieceSetup[i].BlackCount <= 0)
+                    {
+                        Debug.LogWarning("Black piece count cannot go below zero");
+                        return;
+                    }
+                    m_PieceSetup[i].BlackCount = Mathf.Clamp(m_PieceSetup[i].BlackCount - 1, 0, MAX_PIECES_PER_COLOR);
                 }
                 return;
             }
