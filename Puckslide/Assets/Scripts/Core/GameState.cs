@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization.Json;
 using System.Text;
 
@@ -122,29 +121,6 @@ public class GameState
         using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(json)))
         {
             return (GameState)serializer.ReadObject(ms);
-        }
-    }
-
-    public byte[] ToBinary()
-    {
-        using (var ms = new MemoryStream())
-        {
-            var bf = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            bf.Serialize(ms, this);
-#pragma warning restore SYSLIB0011
-            return ms.ToArray();
-        }
-    }
-
-    public static GameState FromBinary(byte[] data)
-    {
-        using (var ms = new MemoryStream(data))
-        {
-            var bf = new BinaryFormatter();
-#pragma warning disable SYSLIB0011
-            return (GameState)bf.Deserialize(ms);
-#pragma warning restore SYSLIB0011
         }
     }
 

@@ -6,6 +6,7 @@ public class NetworkInputSource : IInputSource
     private bool m_Pointer;
     private bool m_PointerUp;
     private Vector3 m_Position;
+    private bool m_InputThisFrame;
 
     public void FeedInput(Vector3 position, bool pointerDown, bool pointer, bool pointerUp)
     {
@@ -13,6 +14,7 @@ public class NetworkInputSource : IInputSource
         m_PointerDown = pointerDown;
         m_Pointer = pointer;
         m_PointerUp = pointerUp;
+        m_InputThisFrame = true;
     }
 
     public bool GetPointerDown()
@@ -24,7 +26,9 @@ public class NetworkInputSource : IInputSource
 
     public bool GetPointer()
     {
-        return m_Pointer;
+        bool pointer = m_Pointer;
+        m_Pointer = false;
+        return pointer;
     }
 
     public bool GetPointerUp()
@@ -37,5 +41,19 @@ public class NetworkInputSource : IInputSource
     public Vector3 GetPointerPosition()
     {
         return m_Position;
+    }
+
+    /// <summary>
+    /// Should be called once per frame to clear the pointer state when no new input arrives.
+    /// </summary>
+    public void Update()
+    {
+        if (!m_InputThisFrame)
+        {
+            m_Pointer = false;
+            m_PointerDown = false;
+            m_PointerUp = false;
+        }
+        m_InputThisFrame = false;
     }
 }

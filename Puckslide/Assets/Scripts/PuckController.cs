@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[DefaultExecutionOrder(100)]
 public class PuckController : MonoBehaviour
 {
     [SerializeField]
@@ -78,7 +79,6 @@ public class PuckController : MonoBehaviour
         m_Collider = GetComponent<CircleCollider2D>();
         m_GridManager = FindObjectOfType<GridManager>();
         m_EventBus = FindObjectOfType<EventBusBootstrap>()?.Bus;
-        m_InputSource = InputSourceBootstrapper.Current;
         m_TurnManager = TurnManager.Instance;
 
         if (m_Collider != null)
@@ -189,6 +189,15 @@ public class PuckController : MonoBehaviour
         m_BottomEntryY = minY - halfHeight;
         m_TopEntryY = maxY + halfHeight;
         m_HalfBoardY = (m_TopEntryY + m_BottomEntryY) * 0.5f;
+    }
+
+    private void Start()
+    {
+        m_InputSource = InputSourceBootstrapper.Current;
+        if (m_InputSource == null)
+        {
+            Debug.LogWarning("PuckController missing input source. Ensure InputSourceBootstrapper is initialized first.", this);
+        }
     }
 
     private void OnEnable()
