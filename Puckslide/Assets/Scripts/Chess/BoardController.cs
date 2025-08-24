@@ -33,17 +33,18 @@ public class BoardController : MonoBehaviour
     private bool? m_LastMoveWasWhite = null;
 
     private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
+    private readonly List<Piece> m_SpawnedPieces = new List<Piece>();
     private bool m_IsDragging = false;
     private bool m_MouseDownOnPiece = false;
     private Vector3 m_MouseDownPos;
     private Tile m_WhiteCheckTile;
     private Tile m_BlackCheckTile;
 
-    private struct Move
+    private struct BoardMove
     {
         public Tile From;
         public Tile To;
-        public Move(Tile from, Tile to)
+        public BoardMove(Tile from, Tile to)
         {
             From = from;
             To = to;
@@ -64,21 +65,23 @@ public class BoardController : MonoBehaviour
             Destroy(child.gameObject);
         }
 
-        EventsManager.OnBoardLayout.AddListener(OnBoardLayout, true);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
         m_LastMoveWasWhite = null;
+        BuildFromState();
     }
 
     private void OnDisable()
     {
-        EventsManager.OnBoardLayout.RemoveListener(OnBoardLayout);
         EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
 
-        Piece[] gamePieces = FindObjectsOfType<Piece>();
-        foreach (Piece piece in gamePieces)
+        foreach (Piece piece in m_SpawnedPieces)
         {
-            Destroy(piece.gameObject);
+            if (piece != null)
+            {
+                Destroy(piece.gameObject);
+            }
         }
+        m_SpawnedPieces.Clear();
     }
 
     private void OnTurnChanged(bool _)
@@ -90,34 +93,26 @@ public class BoardController : MonoBehaviour
         }
     }
 
-    private void OnBoardLayout(Dictionary<Vector2Int, ChessPiece> layout)
+    private void BuildFromState()
     {
-        if (layout == null)
+        var layout = GameState.Instance.GetLayout();
+        foreach (KeyValuePair<Position, ChessPiece> entry in layout)
         {
-            return;
-        }
-        
-        foreach (KeyValuePair<Vector2Int, ChessPiece> entry in layout)
-        {
-            Vector2Int coords = entry.Key;      // e.g. (x=0, y=1)
-            ChessPiece pieceType = entry.Value; // e.g. ChessPiece.B_Pawn
+            Position pos = entry.Key;
+            ChessPiece pieceType = entry.Value;
 
-            // Safety check: make sure coords are in range
-            if (coords.y >= 0 && coords.y < m_Grid.Length &&
-                coords.x >= 0 && coords.x < m_Grid[coords.y].m_Row.Length)
+            if (pos.Y >= 0 && pos.Y < m_Grid.Length &&
+                pos.X >= 0 && pos.X < m_Grid[pos.Y].m_Row.Length)
             {
-                // 1) Get the tile at (x,y)
-                Tile tile = m_Grid[coords.y].m_Row[coords.x];
+                Tile tile = m_Grid[pos.Y].m_Row[pos.X];
                 if (tile == null)
                 {
-                    Debug.LogWarning($"Tile at {coords} is null!");
+                    Debug.LogWarning($"Tile at ({pos.X}, {pos.Y}) is null!");
                     continue;
                 }
 
-                // 2) Instantiate the piece prefab at the tile's position
                 GameObject pieceObj = Instantiate(m_PiecePrefab, tile.transform.position, Quaternion.identity, tile.transform);
 
-                // 3) Get the piece script and call SetupPiece
                 Piece pieceScript = pieceObj.GetComponent<Piece>();
                 if (pieceScript != null)
                 {
@@ -125,6 +120,7 @@ public class BoardController : MonoBehaviour
                     tile.SetPiece(pieceScript);
                     pieceScript.SetTile(tile);
                     pieceScript.transform.SetParent(tile.transform);
+                    m_SpawnedPieces.Add(pieceScript);
                 }
                 else
                 {
@@ -133,7 +129,7 @@ public class BoardController : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning($"Coordinates {coords} are out of range!");
+                Debug.LogWarning($"Coordinates ({pos.X}, {pos.Y}) are out of range!");
             }
         }
     }
@@ -383,6 +379,9 @@ public class BoardController : MonoBehaviour
         if (!IsLegalMove(piece, from, to))
             return false;
 
+        Vector2Int start = GetCoords(from);
+        Vector2Int end = GetCoords(to);
+
         Piece capturedPiece = to.GetCurrentPiece();
         to.SetPiece(piece);
         piece.SetTile(to);
@@ -399,6 +398,8 @@ public class BoardController : MonoBehaviour
             return false;
         }
 
+        GameState.Instance.ApplyMove(new Move(new Position(start.x, start.y), new Position(end.x, end.y)));
+
         if (capturedPiece != null)
         {
             bool isWhitePiece = capturedPiece.IsWhite();
@@ -407,6 +408,7 @@ public class BoardController : MonoBehaviour
                         isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
                     .GetComponent<CapturedPieceUi>();
             capUi.SetupCapturedUiPiece(capturedPiece.GetChessPiece());
+            m_SpawnedPieces.Remove(capturedPiece);
             Destroy(capturedPiece.gameObject);
         }
 
@@ -508,9 +510,9 @@ public class BoardController : MonoBehaviour
         return false;
     }
 
-    private List<Move> GetLegalMoves(bool isWhite)
+    private List<BoardMove> GetLegalMoves(bool isWhite)
     {
-        List<Move> moves = new List<Move>();
+        List<BoardMove> moves = new List<BoardMove>();
         for (int y = 0; y < m_Grid.Length; y++)
         {
             Tile[] row = m_Grid[y].m_Row;
@@ -545,10 +547,10 @@ public class BoardController : MonoBehaviour
                         if (captured != null)
                             captured.SetTile(to);
 
-                        if (!inCheck)
-                        {
-                            moves.Add(new Move(from, to));
-                        }
+                          if (!inCheck)
+                          {
+                              moves.Add(new BoardMove(from, to));
+                          }
                     }
                 }
             }
@@ -559,7 +561,7 @@ public class BoardController : MonoBehaviour
     private void EvaluateGameState(bool isWhiteTurn)
     {
         bool inCheck = IsKingInCheck(isWhiteTurn);
-        List<Move> legalMoves = GetLegalMoves(isWhiteTurn);
+        List<BoardMove> legalMoves = GetLegalMoves(isWhiteTurn);
 
         if (legalMoves.Count == 0)
         {
