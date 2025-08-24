@@ -26,7 +26,21 @@ public class Phase2Manager : MonoBehaviour
 
         // Destroy any existing pucks so only Phase 2 pieces remain when the
         // expanded board becomes active.
-        EventsManager.OnDeletePucks.Invoke(true);
+
+        foreach (PuckController puck in FindObjectsOfType<PuckController>(true))
+        {
+            Destroy(puck.gameObject);
+        }
+
+        // Rebuild the board with Phase 2 chess pieces based on the recorded
+        // layout.
+        BoardController board = FindObjectOfType<BoardController>();
+        if (board != null)
+        {
+            board.enabled = false;
+            board.enabled = true;
+        }
+
 
         // Rebuild the board with Phase 2 chess pieces based on the recorded
         // layout.
