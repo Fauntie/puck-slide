@@ -7,6 +7,7 @@ public class GridManager : MonoBehaviour
 {
     [SerializeField] private float m_TileSize = 1f; // Match this to your tile size
     [SerializeField] private Vector2 m_GridOrigin = Vector2.zero; // Bottom-left of the grid
+    public Vector2 GridOrigin => m_GridOrigin;
     private GameState m_GameState => GameState.Instance;
 
     private void Update()

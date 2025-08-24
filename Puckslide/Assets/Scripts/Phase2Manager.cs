@@ -48,10 +48,11 @@ public class Phase2Manager : MonoBehaviour
     {
         GameState state = GameState.Instance;
         state.Clear();
+        GridManager gridManager = FindObjectOfType<GridManager>();
         foreach (PuckController puck in FindObjectsOfType<PuckController>())
         {
             // Update each puck's grid position and record it if valid.
-            puck.UpdateGridPosition(m_TileSize, Vector2.zero);
+            puck.UpdateGridPosition(m_TileSize, gridManager.GridOrigin);
             Vector2Int pos = puck.CurrentGridPosition;
             if (pos.x >= 0 && pos.y >= 0)
             {
