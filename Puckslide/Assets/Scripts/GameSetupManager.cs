@@ -22,6 +22,17 @@ public class PieceSetupData
     public int WhiteCount;
     public int BlackCount;
     public bool Sticky;
+
+    public PieceSetupData Clone()
+    {
+        return new PieceSetupData
+        {
+            Type = Type,
+            WhiteCount = WhiteCount,
+            BlackCount = BlackCount,
+            Sticky = Sticky
+        };
+    }
 }
 
 public class GameSetupManager : MonoBehaviour
@@ -29,15 +40,10 @@ public class GameSetupManager : MonoBehaviour
     private const int MAX_PIECES_PER_COLOR = 16;
     
     [SerializeField]
-    private PieceSetupData[] m_PieceSetup = new PieceSetupData[]
-    {
-        new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-        new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-    };
+    private PieceSetupData[] m_PieceSetup;
+
+    [SerializeField]
+    private PieceSetupConfig m_DefaultSetupConfig;
 
     [SerializeField]
     private GameObject m_Phase1Canvas;
@@ -49,16 +55,10 @@ public class GameSetupManager : MonoBehaviour
     {
         EventsManager.OnDeletePucks.Invoke(true);
         PuckController.ResetTurnOrder();
-
-        m_PieceSetup = new PieceSetupData[]
+        if ((m_PieceSetup == null || m_PieceSetup.Length == 0) && m_DefaultSetupConfig != null)
         {
-            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-        };
+            ResetToDefaultSetup();
+        }
     }
 
     public void StartButton()
@@ -161,5 +161,17 @@ public class GameSetupManager : MonoBehaviour
     public bool WithinBlackCount()
     {
         return m_PieceSetup.Sum(piece => piece.BlackCount) < MAX_PIECES_PER_COLOR;
+    }
+
+    [ContextMenu("Reset To Default Setup")]
+    public void ResetToDefaultSetup()
+    {
+        if (m_DefaultSetupConfig == null)
+        {
+            Debug.LogWarning("Default setup config is not assigned.");
+            return;
+        }
+
+        m_PieceSetup = m_DefaultSetupConfig.CreateSetup();
     }
 }
