@@ -58,7 +58,7 @@ public class GameSetupManager : MonoBehaviour
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.Invoke(true);
-        PuckController.ResetTurnOrder();
+        TurnManager.ResetTurnOrder();
         if ((m_PieceSetup == null || m_PieceSetup.Length == 0) && m_DefaultSetupConfig != null)
         {
             ResetToDefaultSetup();
