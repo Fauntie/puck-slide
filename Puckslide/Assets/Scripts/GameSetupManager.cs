@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -51,7 +50,10 @@ public class GameSetupManager : MonoBehaviour
     private GameObject m_Phase1Canvas;
     [SerializeField]
     private GameObject Phase1Environment;
-    
+
+    private int m_TotalWhiteCount;
+    private int m_TotalBlackCount;
+
 
     private void OnEnable()
     {
@@ -60,6 +62,10 @@ public class GameSetupManager : MonoBehaviour
         if ((m_PieceSetup == null || m_PieceSetup.Length == 0) && m_DefaultSetupConfig != null)
         {
             ResetToDefaultSetup();
+        }
+        else
+        {
+            RecalculateTotals();
         }
     }
 
@@ -91,10 +97,12 @@ public class GameSetupManager : MonoBehaviour
         if (isWhite)
         {
             setupData.WhiteCount++;
+            m_TotalWhiteCount++;
         }
         else
         {
             setupData.BlackCount++;
+            m_TotalBlackCount++;
         }
 
         NotifyCountsChanged();
@@ -120,10 +128,12 @@ public class GameSetupManager : MonoBehaviour
         if (isWhite)
         {
             setupData.WhiteCount--;
+            m_TotalWhiteCount--;
         }
         else
         {
             setupData.BlackCount--;
+            m_TotalBlackCount--;
         }
 
         NotifyCountsChanged();
@@ -173,12 +183,12 @@ public class GameSetupManager : MonoBehaviour
 
     public bool WithinWhiteCount()
     {
-        return GetTotalCount(true) < MAX_PIECES_PER_COLOR;
+        return m_TotalWhiteCount < MAX_PIECES_PER_COLOR;
     }
 
     public bool WithinBlackCount()
     {
-        return GetTotalCount(false) < MAX_PIECES_PER_COLOR;
+        return m_TotalBlackCount < MAX_PIECES_PER_COLOR;
     }
 
     public bool CanIncrease(ChessPieceType pieceType, bool isWhite)
@@ -226,7 +236,7 @@ public class GameSetupManager : MonoBehaviour
 
     private int GetTotalCount(bool isWhite)
     {
-        return m_PieceSetup.Sum(piece => isWhite ? piece.WhiteCount : piece.BlackCount);
+        return isWhite ? m_TotalWhiteCount : m_TotalBlackCount;
     }
 
     private void NotifyCountsChanged()
@@ -244,5 +254,23 @@ public class GameSetupManager : MonoBehaviour
         }
 
         m_PieceSetup = m_DefaultSetupConfig.CreateSetup();
+        RecalculateTotals();
+    }
+
+    private void RecalculateTotals()
+    {
+        m_TotalWhiteCount = 0;
+        m_TotalBlackCount = 0;
+
+        if (m_PieceSetup == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < m_PieceSetup.Length; i++)
+        {
+            m_TotalWhiteCount += m_PieceSetup[i].WhiteCount;
+            m_TotalBlackCount += m_PieceSetup[i].BlackCount;
+        }
     }
 }
