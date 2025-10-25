@@ -3,6 +3,7 @@ using UnityEngine;
 public class TurnManager : MonoBehaviour
 {
     public static TurnManager Instance { get; private set; }
+    private static bool s_ResetQueuedBeforeInit;
 
     [SerializeField]
     private bool m_IsWhiteTurn = true;
@@ -22,6 +23,14 @@ public class TurnManager : MonoBehaviour
     private void OnEnable()
     {
         EventsManager.OnPuckStopped.AddListener(OnPuckStopped);
+
+        if (s_ResetQueuedBeforeInit)
+        {
+            s_ResetQueuedBeforeInit = false;
+            InternalResetTurnOrder();
+            return;
+        }
+
         BroadcastTurn();
     }
 
@@ -59,7 +68,7 @@ public class TurnManager : MonoBehaviour
     {
         if (Instance == null)
         {
-            Debug.LogWarning("TurnManager.ResetTurnOrder called before the manager was initialised.");
+            s_ResetQueuedBeforeInit = true;
             return;
         }
 

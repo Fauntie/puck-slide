@@ -6,5 +6,5 @@
 - The guard clause we added in `TurnManager.ResetTurnOrder()` logs the warning that shows up in the console screenshot and exits early, which means the `EventsManager.OnTurnChanged` event keeps broadcasting whichever colour moved last in the previous session.
 - Because no new "white to move" broadcast is sent, the launcher logic keeps thinking it is still white's turn, so play never alternates during the launch phase.
 
-## Follow-up task
-- Rework the turn reset so it runs after the `TurnManager` singleton has finished initialising (for example by letting `TurnManager` listen for the setup event itself, or by queueing the reset until `Instance` is ready) and verify that the launch phase alternates turns correctly.
+## Fix
+- `TurnManager.ResetTurnOrder()` now queues the request if the singleton is not initialised yet. When the manager finishes enabling it performs the pending reset before sending the initial `OnTurnChanged` broadcast, restoring the white/black launch alternation.
