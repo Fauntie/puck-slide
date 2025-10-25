@@ -27,19 +27,23 @@ public class Phase1PieceButton : MonoBehaviour
 
     private int m_PieceCount = 0;
     private bool m_IsSticky;
+    private bool m_IsCurrentTurn;
     
     private void OnEnable()
     {
         EventsManager.OnPieceSetupData.AddListener(OnPieceSetup, true);
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
         m_Button.onClick.AddListener(OnButtonPress);
     }
-    
+
     private void OnDisable()
     {
         EventsManager.OnPieceSetupData.RemoveListener(OnPieceSetup);
+        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
         m_Button.onClick.RemoveListener(OnButtonPress);
         m_PieceCount = 0;
         m_PieceCountText.text = "X 0";
+        UpdateButtonState();
     }
 
     private void OnButtonPress()
@@ -49,7 +53,7 @@ public class Phase1PieceButton : MonoBehaviour
             return;
         }
 
-        if (PuckController.IsWhiteTurn != m_IsWhite)
+        if (!m_IsCurrentTurn)
         {
             return;
         }
@@ -61,6 +65,7 @@ public class Phase1PieceButton : MonoBehaviour
         puckController.Init(m_ChessPieceType, m_IsSticky, m_IsWhite);
         m_PieceCount--;
         m_PieceCountText.text = $"X {m_PieceCount}";
+        UpdateButtonState();
     }
     
     private void OnPieceSetup(PieceSetupData[] pieceSetupData)
@@ -86,8 +91,20 @@ public class Phase1PieceButton : MonoBehaviour
                 }
 
                 m_IsSticky = pieceSetupData[i].Sticky;
+                UpdateButtonState();
                 return;
             }
         }
+    }
+
+    private void OnTurnChanged(bool isWhiteTurn)
+    {
+        m_IsCurrentTurn = isWhiteTurn == m_IsWhite;
+        UpdateButtonState();
+    }
+
+    private void UpdateButtonState()
+    {
+        m_Button.interactable = m_IsCurrentTurn && m_PieceCount > 0;
     }
 }

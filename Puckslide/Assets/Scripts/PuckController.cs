@@ -43,9 +43,9 @@ public class PuckController : MonoBehaviour
 
     [SerializeField]
     private float m_MaxLineWidth = 0.3f;
-    private static bool s_IsWhiteTurn = true;
     private static PuckController s_ActivePuck;
     private bool m_IsSelected;
+    private bool m_IsWhiteTurn;
 
     // Entry lines for both sides of the board.
     private float m_BottomEntryY;
@@ -195,8 +195,9 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    private void OnTurnChanged(bool _)
+    private void OnTurnChanged(bool isWhiteTurn)
     {
+        m_IsWhiteTurn = isWhiteTurn;
         UpdateBoardEntryLines();
     }
 
@@ -279,7 +280,7 @@ public class PuckController : MonoBehaviour
     private void OnMouseDown()
     {
 
-        if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
+        if (IsWhitePiece != m_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
 
         {
             m_IsSelected = false;
@@ -448,21 +449,10 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        if (m_HasReachedBoard)
-        {
-            s_ActivePuck = null;
-            s_IsWhiteTurn = !s_IsWhiteTurn;
-            if (Phase2Manager.IsPhase2Active)
-            {
-                BoardFlipper.FlipCamera();
-            }
-            else
-            {
-                BoardFlipper.Flip();
-            }
-            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
-        }
-        else
+        bool hasReachedBoard = m_HasReachedBoard;
+        s_ActivePuck = null;
+
+        if (!hasReachedBoard)
         {
             // Shot stopped before reaching the board—reset for another try
             m_Rigidbody.position = m_StartPosition;
@@ -472,6 +462,8 @@ public class PuckController : MonoBehaviour
             transform.rotation = Quaternion.identity;
             m_HasReachedBoard = false;
         }
+
+        EventsManager.OnPuckStopped.Invoke(new PuckStoppedEvent(this, hasReachedBoard, IsWhitePiece));
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -487,13 +479,6 @@ public class PuckController : MonoBehaviour
 
     public bool IsWhitePiece => (int)ChessPiece >= 6;
 
-    public static bool IsWhiteTurn => s_IsWhiteTurn;
-
-    public static void ResetTurnOrder()
-    {
-        s_IsWhiteTurn = true; // Start with white's turn
-        EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
-    }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)
     {
