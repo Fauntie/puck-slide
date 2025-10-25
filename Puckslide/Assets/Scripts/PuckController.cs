@@ -452,14 +452,7 @@ public class PuckController : MonoBehaviour
         {
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
-            if (Phase2Manager.IsPhase2Active)
-            {
-                BoardFlipper.FlipCamera();
-            }
-            else
-            {
-                yield return BoardFlipper.Flip();
-            }
+            yield return BoardFlipper.Flip();
             EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
         }
         else
