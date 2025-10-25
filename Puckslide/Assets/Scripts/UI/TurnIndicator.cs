@@ -40,9 +40,17 @@ public class TurnIndicator : MonoBehaviour
 
     private void OnTurnChanged(bool isWhiteTurn)
     {
-        if (m_Text != null)
+        if (m_Text == null)
         {
-            m_Text.text = isWhiteTurn ? "White's turn" : "Black's turn";
+            return;
         }
+
+        if (!Phase2Manager.IsPhase2Active)
+        {
+            m_Text.text = "Sticky Pieces";
+            return;
+        }
+
+        m_Text.text = isWhiteTurn ? "White's turn" : "Black's turn";
     }
 }

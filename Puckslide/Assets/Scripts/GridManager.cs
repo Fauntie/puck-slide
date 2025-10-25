@@ -7,7 +7,14 @@ public class GridManager : MonoBehaviour
 {
     [SerializeField] private float m_TileSize = 1f; // Match this to your tile size
     [SerializeField] private Vector2 m_GridOrigin = Vector2.zero; // Bottom-left of the grid
-    private Dictionary<Vector2Int, ChessPiece> m_PieceLayout = new Dictionary<Vector2Int, ChessPiece>();
+    [SerializeField] private GameObject m_Phase1Canvas;
+    [SerializeField] private GameObject m_Phase1Environment;
+    [SerializeField] private GameObject m_Phase2Environment;
+    [SerializeField] private GameObject m_Phase2Canvas;
+    [SerializeField] private float m_SnapDelayOnStartPhase2 = 0f;
+
+    private readonly Dictionary<Vector2Int, ChessPiece> m_PieceLayout = new Dictionary<Vector2Int, ChessPiece>();
+    private bool m_IsTransitioningToPhase2;
 
     private void Update()
     {
@@ -31,6 +38,52 @@ public class GridManager : MonoBehaviour
             puck.SnapToGrid(m_TileSize, m_GridOrigin);
             yield return new WaitForSeconds(delay);
         }
+    }
+
+    public void StartPhase2()
+    {
+        if (!gameObject.activeInHierarchy || m_IsTransitioningToPhase2)
+        {
+            return;
+        }
+
+        StartCoroutine(StartPhase2Routine());
+    }
+
+    private IEnumerator StartPhase2Routine()
+    {
+        m_IsTransitioningToPhase2 = true;
+
+        if (m_SnapDelayOnStartPhase2 > 0f)
+        {
+            yield return SnapPucksOneByOne(m_SnapDelayOnStartPhase2);
+        }
+
+        UpdatePieceLayout();
+
+        if (m_Phase1Canvas != null)
+        {
+            m_Phase1Canvas.SetActive(false);
+        }
+
+        if (m_Phase1Environment != null)
+        {
+            m_Phase1Environment.SetActive(false);
+        }
+
+        if (m_Phase2Environment != null)
+        {
+            m_Phase2Environment.SetActive(true);
+        }
+
+        if (m_Phase2Canvas != null)
+        {
+            m_Phase2Canvas.SetActive(true);
+        }
+
+        EventsManager.OnTurnChanged.Invoke(PuckController.IsWhiteTurn);
+
+        m_IsTransitioningToPhase2 = false;
     }
 
     public void UpdatePieceLayout()
