@@ -458,7 +458,7 @@ public class PuckController : MonoBehaviour
             }
             else
             {
-                BoardFlipper.Flip();
+                yield return BoardFlipper.Flip();
             }
             EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
         }

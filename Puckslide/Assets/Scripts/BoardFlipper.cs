@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class BoardFlipper
@@ -10,6 +12,11 @@ public static class BoardFlipper
     private static Vector3 s_BoardCenter;
 
     private static Vector3 s_FlipOffset = Vector3.zero;
+
+    private static BoardFlipAnimationRunner s_Animator;
+
+    private const float FLIP_DURATION = 1.1f;
+    private const float FLIP_LIFT_HEIGHT = 0.6f;
 
 
     public static void SetBoard(Transform board, int gridSize, float tileSize)
@@ -129,14 +136,30 @@ public static class BoardFlipper
         return s_BoardTransform;
     }
 
-    public static void Flip()
+    public static IEnumerator Flip()
     {
         if (s_BoardTransform == null)
         {
-            return;
+            yield break;
         }
 
-        s_IsFlipped = !s_IsFlipped;
+        EnsureAnimator();
+
+        if (s_Animator == null)
+        {
+            yield break;
+        }
+
+        if (s_Animator.IsAnimating)
+        {
+            while (s_Animator.IsAnimating)
+            {
+                yield return null;
+            }
+            yield break;
+        }
+
+        bool targetFlippedState = !s_IsFlipped;
 
         // Ensure our cached centre is up to date before rotating.
         RecalculateBoardCenter();
@@ -149,63 +172,110 @@ public static class BoardFlipper
         RecalculateBoardCenter();
         Vector3 boardCenterAfter = GetBoardCenter();
         Vector3 boardOffset = boardCenterBefore - boardCenterAfter;
-        Vector3 totalOffset = boardOffset + (s_IsFlipped ? s_FlipOffset : -s_FlipOffset);
-        s_BoardTransform.position += totalOffset;
-        // Update the cached centre again now that the board has been moved.
+        Vector3 totalOffset = boardOffset + (targetFlippedState ? s_FlipOffset : -s_FlipOffset);
+
+        Quaternion boardStartRotation = s_BoardTransform.rotation;
+        Vector3 boardStartPosition = s_BoardTransform.position;
+        Quaternion rotationDelta = Quaternion.AngleAxis(180f, Vector3.forward);
+
+        Vector3 boardEndPosition = boardCenterBefore + rotationDelta * (boardStartPosition - boardCenterBefore) + totalOffset;
+        Quaternion boardEndRotation = rotationDelta * boardStartRotation;
+
+        // Revert to the original pose now that we've captured the targets.
+        s_BoardTransform.RotateAround(boardCenterBefore, Vector3.forward, -180f);
+        s_BoardTransform.SetPositionAndRotation(boardStartPosition, boardStartRotation);
         RecalculateBoardCenter();
+
+        var animatedObjects = new List<FlipObjectData>();
+        var seenTransforms = new HashSet<Transform>();
 
         foreach (PuckController puck in UnityEngine.Object.FindObjectsOfType<PuckController>())
         {
-            if (!puck.transform.IsChildOf(s_BoardTransform))
+            if (puck == null)
             {
-
-                Vector3 offset = puck.transform.position - boardCenterBefore;
-                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
-                    boardCenterBefore.y - offset.y,
-
-                    puck.transform.position.z);
-                // Apply the board translation so independent pucks stay aligned.
-                newPos += totalOffset;
-                puck.transform.position = newPos;
+                continue;
             }
 
-            puck.transform.rotation = Quaternion.identity;
-
-            Rigidbody2D rb = puck.GetComponent<Rigidbody2D>();
-            if (rb != null)
+            Transform transform = puck.transform;
+            if (transform == null || !seenTransforms.Add(transform))
             {
-                rb.velocity = Vector2.zero;
-                rb.angularVelocity = 0f;
+                continue;
             }
+
+            Vector3 startPosition = transform.position;
+            var data = new FlipObjectData
+            {
+                Transform = transform,
+                StartPosition = startPosition,
+                OffsetFromCenter = startPosition - boardCenterBefore,
+                StartRotation = transform.rotation,
+                EndRotation = Quaternion.identity,
+                EndPosition = boardCenterBefore + rotationDelta * (startPosition - boardCenterBefore) + totalOffset,
+                Rigidbody = transform.GetComponent<Rigidbody2D>()
+            };
+            animatedObjects.Add(data);
         }
 
         foreach (Piece piece in UnityEngine.Object.FindObjectsOfType<Piece>())
         {
-            if (!piece.transform.IsChildOf(s_BoardTransform))
+            if (piece == null)
             {
-
-                Vector3 offset = piece.transform.position - boardCenterBefore;
-                Vector3 newPos = new Vector3(boardCenterBefore.x - offset.x,
-                    boardCenterBefore.y - offset.y,
-
-                    piece.transform.position.z);
-                // Apply the board translation so independent pieces stay aligned.
-                newPos += totalOffset;
-                piece.transform.position = newPos;
+                continue;
             }
 
-            piece.transform.rotation = Quaternion.identity;
-
-            Rigidbody2D rb = piece.GetComponent<Rigidbody2D>();
-            if (rb != null)
+            Transform transform = piece.transform;
+            if (transform == null || !seenTransforms.Add(transform))
             {
-                rb.velocity = Vector2.zero;
-                rb.angularVelocity = 0f;
+                continue;
+            }
+
+            Vector3 startPosition = transform.position;
+            var data = new FlipObjectData
+            {
+                Transform = transform,
+                StartPosition = startPosition,
+                OffsetFromCenter = startPosition - boardCenterBefore,
+                StartRotation = transform.rotation,
+                EndRotation = Quaternion.identity,
+                EndPosition = boardCenterBefore + rotationDelta * (startPosition - boardCenterBefore) + totalOffset,
+                Rigidbody = transform.GetComponent<Rigidbody2D>()
+            };
+            animatedObjects.Add(data);
+        }
+
+        Vector3 liftDirection = Vector3.back;
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            Vector3 cameraLift = -cam.transform.forward;
+            if (cameraLift.sqrMagnitude > Mathf.Epsilon)
+            {
+                liftDirection = cameraLift.normalized;
             }
         }
 
-        // Update the cached centre again after moving the board and pieces.
-        RecalculateBoardCenter();
+        var animationData = new BoardFlipAnimationData
+        {
+            BoardTransform = s_BoardTransform,
+            BoardCenterBefore = boardCenterBefore,
+            BoardStartPosition = boardStartPosition,
+            BoardEndPosition = boardEndPosition,
+            BoardStartRotation = boardStartRotation,
+            BoardEndRotation = boardEndRotation,
+            TotalOffset = totalOffset,
+            Objects = animatedObjects,
+            Duration = FLIP_DURATION,
+            LiftHeight = FLIP_LIFT_HEIGHT,
+            LiftDirection = liftDirection
+        };
+
+        s_IsFlipped = targetFlippedState;
+        s_Animator.BeginAnimation(animationData);
+
+        while (s_Animator.IsAnimating)
+        {
+            yield return null;
+        }
     }
 
     public static void FlipCamera()
@@ -254,5 +324,124 @@ public static class BoardFlipper
         {
             piece.transform.Rotate(0f, 0f, 180f, Space.Self);
         }
+    }
+
+    private static void EnsureAnimator()
+    {
+        if (s_Animator != null)
+        {
+            return;
+        }
+
+        GameObject animatorObject = new GameObject("BoardFlipAnimator");
+        animatorObject.hideFlags = HideFlags.HideAndDontSave;
+        Object.DontDestroyOnLoad(animatorObject);
+        s_Animator = animatorObject.AddComponent<BoardFlipAnimationRunner>();
+    }
+
+    private class BoardFlipAnimationRunner : MonoBehaviour
+    {
+        public bool IsAnimating { get; private set; }
+
+        public void BeginAnimation(BoardFlipAnimationData data)
+        {
+            if (IsAnimating)
+            {
+                return;
+            }
+
+            StartCoroutine(Animate(data));
+        }
+
+        private IEnumerator Animate(BoardFlipAnimationData data)
+        {
+            IsAnimating = true;
+
+            foreach (FlipObjectData obj in data.Objects)
+            {
+                if (obj.Rigidbody != null)
+                {
+                    obj.WasSimulated = obj.Rigidbody.simulated;
+                    obj.Rigidbody.simulated = false;
+                    obj.Rigidbody.velocity = Vector2.zero;
+                    obj.Rigidbody.angularVelocity = 0f;
+                }
+            }
+
+            float elapsed = 0f;
+            Vector3 normalizedLift = data.LiftDirection.sqrMagnitude > Mathf.Epsilon
+                ? data.LiftDirection.normalized
+                : Vector3.back;
+
+            while (elapsed < data.Duration)
+            {
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / data.Duration);
+                float smoothT = Mathf.SmoothStep(0f, 1f, t);
+                Quaternion rotation = Quaternion.AngleAxis(180f * smoothT, Vector3.forward);
+                Vector3 translation = data.TotalOffset * smoothT;
+                float liftAmount = Mathf.Sin(Mathf.PI * smoothT) * data.LiftHeight;
+                Vector3 liftOffset = normalizedLift * liftAmount;
+
+                Vector3 boardRotatedOffset = rotation * (data.BoardStartPosition - data.BoardCenterBefore);
+                data.BoardTransform.position = data.BoardCenterBefore + boardRotatedOffset + translation + liftOffset;
+                data.BoardTransform.rotation = rotation * data.BoardStartRotation;
+
+                foreach (FlipObjectData obj in data.Objects)
+                {
+                    Vector3 rotated = rotation * obj.OffsetFromCenter;
+                    obj.Transform.position = data.BoardCenterBefore + rotated + translation + liftOffset;
+                    obj.Transform.rotation = Quaternion.Slerp(obj.StartRotation, obj.EndRotation, smoothT);
+                }
+
+                yield return null;
+            }
+
+            data.BoardTransform.position = data.BoardEndPosition;
+            data.BoardTransform.rotation = data.BoardEndRotation;
+
+            foreach (FlipObjectData obj in data.Objects)
+            {
+                obj.Transform.position = obj.EndPosition;
+                obj.Transform.rotation = obj.EndRotation;
+                if (obj.Rigidbody != null)
+                {
+                    obj.Rigidbody.velocity = Vector2.zero;
+                    obj.Rigidbody.angularVelocity = 0f;
+                    obj.Rigidbody.simulated = obj.WasSimulated;
+                }
+            }
+
+            RecalculateBoardCenter();
+
+            IsAnimating = false;
+        }
+    }
+
+    private class BoardFlipAnimationData
+    {
+        public Transform BoardTransform;
+        public Vector3 BoardCenterBefore;
+        public Vector3 BoardStartPosition;
+        public Vector3 BoardEndPosition;
+        public Quaternion BoardStartRotation;
+        public Quaternion BoardEndRotation;
+        public Vector3 TotalOffset;
+        public List<FlipObjectData> Objects;
+        public float Duration;
+        public float LiftHeight;
+        public Vector3 LiftDirection;
+    }
+
+    private class FlipObjectData
+    {
+        public Transform Transform;
+        public Vector3 StartPosition;
+        public Vector3 OffsetFromCenter;
+        public Quaternion StartRotation;
+        public Quaternion EndRotation;
+        public Vector3 EndPosition;
+        public Rigidbody2D Rigidbody;
+        public bool WasSimulated;
     }
 }
