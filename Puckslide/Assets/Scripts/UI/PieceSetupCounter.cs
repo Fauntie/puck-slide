@@ -24,37 +24,46 @@ public class PieceSetupCounter : MonoBehaviour
 
     private void OnEnable()
     {
-        m_CurrentCount = m_GameSetupManager.GetCount(m_ChessPieceType, m_IsWhiteCounter);
-        m_TextMeshProUGUI.text = $"{m_CurrentCount}";
         m_MinusButton.onClick.AddListener(MinusPressed);
         m_PlusButton.onClick.AddListener(PlusPressed);
+        m_GameSetupManager.CountsChanged += RefreshUI;
+        RefreshUI();
     }
 
     private void OnDisable()
     {
         m_MinusButton.onClick.RemoveListener(MinusPressed);
         m_PlusButton.onClick.RemoveListener(PlusPressed);
+        m_GameSetupManager.CountsChanged -= RefreshUI;
     }
 
     private void MinusPressed()
     {
-        if (m_CurrentCount == 0)
+        bool changed = m_GameSetupManager.DecreaseCount(m_ChessPieceType, m_IsWhiteCounter);
+        if (changed)
         {
-            return;
+            m_CurrentCount--;
         }
-        
-        m_GameSetupManager.DecreaseCount(m_ChessPieceType, m_IsWhiteCounter);
-        m_CurrentCount--;
-        m_TextMeshProUGUI.text = $"{m_CurrentCount}";
+
+        RefreshUI();
     }
-    
+
     private void PlusPressed()
     {
-        if (m_IsWhiteCounter ? m_GameSetupManager.WithinWhiteCount() : m_GameSetupManager.WithinBlackCount())
+        bool changed = m_GameSetupManager.IncreaseCount(m_ChessPieceType, m_IsWhiteCounter);
+        if (changed)
         {
-            m_GameSetupManager.IncreaseCount(m_ChessPieceType, m_IsWhiteCounter);
             m_CurrentCount++;
-            m_TextMeshProUGUI.text = $"{m_CurrentCount}";
         }
+
+        RefreshUI();
+    }
+
+    private void RefreshUI()
+    {
+        m_CurrentCount = m_GameSetupManager.GetCount(m_ChessPieceType, m_IsWhiteCounter);
+        m_TextMeshProUGUI.text = $"{m_CurrentCount}";
+        m_MinusButton.interactable = m_GameSetupManager.CanDecrease(m_ChessPieceType, m_IsWhiteCounter);
+        m_PlusButton.interactable = m_GameSetupManager.CanIncrease(m_ChessPieceType, m_IsWhiteCounter);
     }
 }
