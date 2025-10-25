@@ -1,9 +1,5 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
 
 public enum ChessPieceType
 {
@@ -39,6 +35,9 @@ public class GameSetupManager : MonoBehaviour
 {
     private const int MAX_PIECES_PER_COLOR = 16;
 
+    private int m_TotalWhitePieces;
+    private int m_TotalBlackPieces;
+
     public event Action CountsChanged;
     
     [SerializeField]
@@ -53,6 +52,11 @@ public class GameSetupManager : MonoBehaviour
     private GameObject Phase1Environment;
     
 
+    private void Awake()
+    {
+        RecalculateTotals();
+    }
+
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.Invoke(true);
@@ -61,6 +65,8 @@ public class GameSetupManager : MonoBehaviour
         {
             ResetToDefaultSetup();
         }
+
+        RecalculateTotals();
     }
 
     public void StartButton()
@@ -80,7 +86,11 @@ public class GameSetupManager : MonoBehaviour
     public bool IncreaseCount(ChessPieceType pieceType, bool isWhite, out string errorMessage)
     {
         bool changed = TryAdjustCount(pieceType, isWhite, 1, out errorMessage);
-        NotifyCountsChanged();
+        if (changed)
+        {
+            NotifyCountsChanged();
+        }
+
         return changed;
     }
 
@@ -92,7 +102,11 @@ public class GameSetupManager : MonoBehaviour
     public bool DecreaseCount(ChessPieceType pieceType, bool isWhite, out string errorMessage)
     {
         bool changed = TryAdjustCount(pieceType, isWhite, -1, out errorMessage);
-        NotifyCountsChanged();
+        if (changed)
+        {
+            NotifyCountsChanged();
+        }
+
         return changed;
     }
 
@@ -155,7 +169,7 @@ public class GameSetupManager : MonoBehaviour
             return false;
         }
 
-        return IsAdjustmentAllowed(setupData, pieceType, isWhite, 1, out _);
+        return ValidateAdjustment(setupData, pieceType, isWhite, 1, out _);
     }
 
     public bool CanDecrease(ChessPieceType pieceType, bool isWhite)
@@ -166,7 +180,7 @@ public class GameSetupManager : MonoBehaviour
             return false;
         }
 
-        return IsAdjustmentAllowed(setupData, pieceType, isWhite, -1, out _);
+        return ValidateAdjustment(setupData, pieceType, isWhite, -1, out _);
     }
 
     private PieceSetupData FindPieceSetupData(ChessPieceType pieceType)
@@ -192,37 +206,41 @@ public class GameSetupManager : MonoBehaviour
             return false;
         }
 
-        if (!IsAdjustmentAllowed(setupData, pieceType, isWhite, delta, out errorMessage))
+        if (!ValidateAdjustment(setupData, pieceType, isWhite, delta, out AdjustmentFailureCause failure))
         {
+            errorMessage = BuildErrorMessage(pieceType, isWhite, failure);
             return false;
         }
 
         if (isWhite)
         {
             setupData.WhiteCount += delta;
+            m_TotalWhitePieces += delta;
         }
         else
         {
             setupData.BlackCount += delta;
+            m_TotalBlackPieces += delta;
         }
 
+        errorMessage = string.Empty;
         return true;
     }
 
-    private bool IsAdjustmentAllowed(PieceSetupData setupData, ChessPieceType pieceType, bool isWhite, int delta, out string errorMessage)
+    private bool ValidateAdjustment(PieceSetupData setupData, ChessPieceType pieceType, bool isWhite, int delta, out AdjustmentFailureCause failure)
     {
         int currentCount = isWhite ? setupData.WhiteCount : setupData.BlackCount;
         int proposedCount = currentCount + delta;
 
         if (proposedCount < 0)
         {
-            errorMessage = $"Cannot assign fewer than 0 {GetColorLabel(isWhite)} {pieceType} pieces.";
+            failure = AdjustmentFailureCause.PieceLowerBound;
             return false;
         }
 
         if (proposedCount > MAX_PIECES_PER_COLOR)
         {
-            errorMessage = $"Cannot assign more than {MAX_PIECES_PER_COLOR} {GetColorLabel(isWhite)} {pieceType} pieces.";
+            failure = AdjustmentFailureCause.PieceUpperBound;
             return false;
         }
 
@@ -231,18 +249,37 @@ public class GameSetupManager : MonoBehaviour
 
         if (proposedTotal < 0)
         {
-            errorMessage = $"Cannot have fewer than 0 total {GetColorLabel(isWhite)} pieces.";
+            failure = AdjustmentFailureCause.RosterLowerBound;
             return false;
         }
 
         if (proposedTotal > MAX_PIECES_PER_COLOR)
         {
-            errorMessage = $"Cannot exceed {MAX_PIECES_PER_COLOR} total {GetColorLabel(isWhite)} pieces.";
+            failure = AdjustmentFailureCause.RosterUpperBound;
             return false;
         }
 
-        errorMessage = string.Empty;
+        failure = AdjustmentFailureCause.None;
         return true;
+    }
+
+    private string BuildErrorMessage(ChessPieceType pieceType, bool isWhite, AdjustmentFailureCause failure)
+    {
+        string colorLabel = GetColorLabel(isWhite);
+
+        switch (failure)
+        {
+            case AdjustmentFailureCause.PieceLowerBound:
+                return $"You cannot assign fewer than 0 {colorLabel} {pieceType} pieces.";
+            case AdjustmentFailureCause.PieceUpperBound:
+                return $"You already have the maximum of {MAX_PIECES_PER_COLOR} {colorLabel} {pieceType} pieces.";
+            case AdjustmentFailureCause.RosterLowerBound:
+                return $"The {colorLabel} roster cannot drop below 0 pieces.";
+            case AdjustmentFailureCause.RosterUpperBound:
+                return $"The {colorLabel} roster is full. Remove a piece before adding another.";
+            default:
+                return string.Empty;
+        }
     }
 
     private static string GetColorLabel(bool isWhite)
@@ -252,12 +289,29 @@ public class GameSetupManager : MonoBehaviour
 
     private int GetTotalCount(bool isWhite)
     {
-        return m_PieceSetup.Sum(piece => isWhite ? piece.WhiteCount : piece.BlackCount);
+        return isWhite ? m_TotalWhitePieces : m_TotalBlackPieces;
     }
 
     private void NotifyCountsChanged()
     {
         CountsChanged?.Invoke();
+    }
+
+    private void RecalculateTotals()
+    {
+        m_TotalWhitePieces = 0;
+        m_TotalBlackPieces = 0;
+
+        if (m_PieceSetup == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < m_PieceSetup.Length; i++)
+        {
+            m_TotalWhitePieces += Mathf.Max(0, m_PieceSetup[i].WhiteCount);
+            m_TotalBlackPieces += Mathf.Max(0, m_PieceSetup[i].BlackCount);
+        }
     }
 
     [ContextMenu("Reset To Default Setup")]
@@ -270,5 +324,16 @@ public class GameSetupManager : MonoBehaviour
         }
 
         m_PieceSetup = m_DefaultSetupConfig.CreateSetup();
+        RecalculateTotals();
+        NotifyCountsChanged();
+    }
+
+    private enum AdjustmentFailureCause
+    {
+        None,
+        PieceLowerBound,
+        PieceUpperBound,
+        RosterLowerBound,
+        RosterUpperBound
     }
 }
