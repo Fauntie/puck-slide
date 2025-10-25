@@ -58,6 +58,9 @@ public class GameSetupManager : MonoBehaviour
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.Invoke(true);
+        // TODO: TurnManager initialises after this script in the new scene
+        // startup order. The follow-up task tracked in Docs/turn-order-reset.md
+        // should make this reset resilient so we do not lose the first turn.
         TurnManager.ResetTurnOrder();
         if ((m_PieceSetup == null || m_PieceSetup.Length == 0) && m_DefaultSetupConfig != null)
         {
