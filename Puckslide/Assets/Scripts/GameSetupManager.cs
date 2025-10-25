@@ -27,6 +27,8 @@ public class PieceSetupData
 public class GameSetupManager : MonoBehaviour
 {
     private const int MAX_PIECES_PER_COLOR = 16;
+
+    public event Action CountsChanged;
     
     [SerializeField]
     private PieceSetupData[] m_PieceSetup = new PieceSetupData[]
@@ -70,46 +72,62 @@ public class GameSetupManager : MonoBehaviour
     }
 
 
-    public void IncreaseCount(ChessPieceType pieceType, bool isWhite)
+    public bool IncreaseCount(ChessPieceType pieceType, bool isWhite)
     {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
+        PieceSetupData setupData = FindPieceSetupData(pieceType);
+        if (setupData == null)
         {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                if (isWhite)
-                {
-                    m_PieceSetup[i].WhiteCount++;
-                }
-                else
-                {
-                    m_PieceSetup[i].BlackCount++;
-                }
-                return;
-            }
+            Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+            NotifyCountsChanged();
+            return false;
         }
 
-        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+        if (!CanIncrease(pieceType, isWhite))
+        {
+            NotifyCountsChanged();
+            return false;
+        }
+
+        if (isWhite)
+        {
+            setupData.WhiteCount++;
+        }
+        else
+        {
+            setupData.BlackCount++;
+        }
+
+        NotifyCountsChanged();
+        return true;
     }
-    
-    public void DecreaseCount(ChessPieceType pieceType, bool isWhite)
+
+    public bool DecreaseCount(ChessPieceType pieceType, bool isWhite)
     {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
+        PieceSetupData setupData = FindPieceSetupData(pieceType);
+        if (setupData == null)
         {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                if (isWhite)
-                {
-                    m_PieceSetup[i].WhiteCount--;
-                }
-                else
-                {
-                    m_PieceSetup[i].BlackCount--;
-                }
-                return;
-            }
+            Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+            NotifyCountsChanged();
+            return false;
         }
 
-        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
+        if (!CanDecrease(pieceType, isWhite))
+        {
+            NotifyCountsChanged();
+            return false;
+        }
+
+        if (isWhite)
+        {
+            setupData.WhiteCount--;
+        }
+        else
+        {
+            setupData.BlackCount--;
+        }
+
+        NotifyCountsChanged();
+        return true;
     }
 
     public void ToggleSticky(ChessPieceType pieceType, bool isSticky)
@@ -155,11 +173,64 @@ public class GameSetupManager : MonoBehaviour
 
     public bool WithinWhiteCount()
     {
-        return m_PieceSetup.Sum(piece => piece.WhiteCount) < MAX_PIECES_PER_COLOR;
+        return GetTotalCount(true) < MAX_PIECES_PER_COLOR;
     }
 
     public bool WithinBlackCount()
     {
-        return m_PieceSetup.Sum(piece => piece.BlackCount) < MAX_PIECES_PER_COLOR;
+        return GetTotalCount(false) < MAX_PIECES_PER_COLOR;
+    }
+
+    public bool CanIncrease(ChessPieceType pieceType, bool isWhite)
+    {
+        PieceSetupData setupData = FindPieceSetupData(pieceType);
+        if (setupData == null)
+        {
+            return false;
+        }
+
+        int currentCount = isWhite ? setupData.WhiteCount : setupData.BlackCount;
+        if (currentCount >= MAX_PIECES_PER_COLOR)
+        {
+            return false;
+        }
+
+        int totalCount = GetTotalCount(isWhite);
+        return totalCount + 1 <= MAX_PIECES_PER_COLOR;
+    }
+
+    public bool CanDecrease(ChessPieceType pieceType, bool isWhite)
+    {
+        PieceSetupData setupData = FindPieceSetupData(pieceType);
+        if (setupData == null)
+        {
+            return false;
+        }
+
+        int currentCount = isWhite ? setupData.WhiteCount : setupData.BlackCount;
+        return currentCount > 0;
+    }
+
+    private PieceSetupData FindPieceSetupData(ChessPieceType pieceType)
+    {
+        for (int i = 0; i < m_PieceSetup.Length; i++)
+        {
+            if (m_PieceSetup[i].Type == pieceType)
+            {
+                return m_PieceSetup[i];
+            }
+        }
+
+        return null;
+    }
+
+    private int GetTotalCount(bool isWhite)
+    {
+        return m_PieceSetup.Sum(piece => isWhite ? piece.WhiteCount : piece.BlackCount);
+    }
+
+    private void NotifyCountsChanged()
+    {
+        CountsChanged?.Invoke();
     }
 }
