@@ -45,7 +45,7 @@ public class TurnManager : MonoBehaviour
 
     private void OnPuckStopped(PuckStoppedEvent puckEvent)
     {
-        if (!puckEvent.HasReachedBoard)
+        if (Phase2Manager.IsPhase2Active && !puckEvent.HasReachedBoard)
         {
             return;
         }
@@ -56,7 +56,7 @@ public class TurnManager : MonoBehaviour
         {
             BoardFlipper.FlipCamera();
         }
-        else
+        else if (puckEvent.HasReachedBoard)
         {
             BoardFlipper.Flip();
         }
