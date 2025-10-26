@@ -6,8 +6,16 @@ public class Tile : MonoBehaviour
 {
     [SerializeField]
     private int m_Row;
-    
+
+    [SerializeField]
+    private SpriteRenderer m_HighlightRenderer;
+
     private Piece m_CurrentPiece;
+
+    private void Awake()
+    {
+        HideHighlight();
+    }
 
     public bool HasPiece()
     {
@@ -32,5 +40,21 @@ public class Tile : MonoBehaviour
     public int GetRow()
     {
         return m_Row;
+    }
+
+    public void ShowHighlight()
+    {
+        if (m_HighlightRenderer != null)
+        {
+            m_HighlightRenderer.enabled = true;
+        }
+    }
+
+    public void HideHighlight()
+    {
+        if (m_HighlightRenderer != null)
+        {
+            m_HighlightRenderer.enabled = false;
+        }
     }
 }

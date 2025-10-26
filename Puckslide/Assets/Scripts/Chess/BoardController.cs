@@ -23,10 +23,13 @@ public class BoardController : MonoBehaviour
     [SerializeField]
     private RowData[] m_Grid;
 
-    // The piece we are currently dragging, if any
-    private Piece m_SelectedPiece;
-    private Vector3 m_Offset;
-    private Tile m_OriginalTile;
+    private Piece m_PressedPiece;
+    private Piece m_DraggedPiece;
+    private Tile m_DragOriginTile;
+    private Piece m_CurrentSelection;
+    private Tile m_CurrentSelectionTile;
+    private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
+    private Tile m_PointerDownTile;
     private bool? m_LastMoveWasWhite = null;
 
     private void OnEnable()
@@ -50,7 +53,12 @@ public class BoardController : MonoBehaviour
     private void OnDisable()
     {
         EventsManager.OnBoardLayout.RemoveListener(OnBoardLayout);
-        
+
+        ClearSelection();
+        m_DraggedPiece = null;
+        m_DragOriginTile = null;
+        m_PressedPiece = null;
+
         Piece[] gamePieces = FindObjectsOfType<Piece>();
         foreach (Piece piece in gamePieces)
         {
@@ -60,6 +68,8 @@ public class BoardController : MonoBehaviour
 
     private void OnBoardLayout(Dictionary<Vector2Int, ChessPiece> layout)
     {
+        ClearSelection();
+
         if (layout == null)
         {
             return;
@@ -108,19 +118,26 @@ public class BoardController : MonoBehaviour
 
     private void Update()
     {
-        // 1) Mouse down
         if (Input.GetMouseButtonDown(0))
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-
-            // Collect everything under the mouse
             RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
 
             Piece topmostPiece = null;
             int topSortingOrder = int.MinValue;
+            Tile firstTile = null;
 
             foreach (RaycastHit2D hit in hits)
             {
+                if (firstTile == null)
+                {
+                    Tile tileHit = hit.collider.GetComponent<Tile>();
+                    if (tileHit != null)
+                    {
+                        firstTile = tileHit;
+                    }
+                }
+
                 Piece piece = hit.collider.GetComponent<Piece>();
                 if (piece != null)
                 {
@@ -133,92 +150,248 @@ public class BoardController : MonoBehaviour
                 }
             }
 
-            // If we found a piece, check turn and "pick it up"
+            m_PointerDownTile = firstTile;
+
             if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
             {
-                m_SelectedPiece = topmostPiece;
-                m_OriginalTile = m_SelectedPiece.GetCurrentTile();
-
-                if (m_OriginalTile != null)
+                Tile originTile = topmostPiece.GetCurrentTile();
+                if (originTile != null)
                 {
-                    m_SelectedPiece.transform.SetParent(null);
-                    m_OriginalTile.ClearTile();
+                    SetSelection(topmostPiece, originTile);
+                    m_PressedPiece = topmostPiece;
+                    m_DragOriginTile = originTile;
                 }
             }
         }
 
-        // 2) Mouse drag
-        if (Input.GetMouseButton(0) && m_SelectedPiece != null)
+        if (Input.GetMouseButton(0) && m_PressedPiece != null)
         {
+            if (m_DraggedPiece == null)
+            {
+                m_DraggedPiece = m_PressedPiece;
+                m_PressedPiece = null;
+
+                if (m_DragOriginTile != null && m_DragOriginTile.GetCurrentPiece() == m_DraggedPiece)
+                {
+                    m_DragOriginTile.ClearTile();
+                }
+
+                m_DraggedPiece.transform.SetParent(null);
+            }
+
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-    
-            // Just place the piece directly at the cursor (plus a tiny Z offset).
-            m_SelectedPiece.transform.position = new Vector3(mouseWorldPos.x,
+            m_DraggedPiece.transform.position = new Vector3(mouseWorldPos.x,
                 mouseWorldPos.y,
                 -0.01f);
         }
 
-        // 3) Mouse up: try to drop onto a tile
-        if (Input.GetMouseButtonUp(0) && m_SelectedPiece != null)
+        if (Input.GetMouseButtonUp(0))
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
 
             Tile tileBelow = null;
 
-            // Look for any tile collider under the mouse
             foreach (RaycastHit2D hit in hits)
             {
                 Tile t = hit.collider.GetComponent<Tile>();
                 if (t != null)
                 {
                     tileBelow = t;
-                    break; // we'll just pick the first tile we find
+                    break;
                 }
             }
 
-            bool moveMade = false;
-            if (tileBelow != null && IsLegalMove(m_SelectedPiece, m_OriginalTile, tileBelow))
+            if (m_DraggedPiece != null)
             {
-                if (tileBelow.HasPiece())
-                {
-                    Piece piece = tileBelow.GetCurrentPiece();
-                    bool isWhitePiece = piece.IsWhite();
-                    CapturedPieceUi capUi =
-                        Instantiate(m_PiecePrefabUI,
-                                isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
-                            .GetComponent<CapturedPieceUi>();
-                    capUi.SetupCapturedUiPiece(piece.GetChessPiece());
-
-                    Destroy(piece.gameObject);
-                    tileBelow.ClearTile();
-                }
-
-                tileBelow.SetPiece(m_SelectedPiece);
-                m_SelectedPiece.SetTile(tileBelow);
-                m_SelectedPiece.transform.position = tileBelow.transform.position;
-                m_SelectedPiece.transform.SetParent(tileBelow.transform);
-
-                if (m_SelectedPiece.IsPawn() && (tileBelow.GetRow() == 0 || tileBelow.GetRow() == 7))
-                {
-                    PromotionPanel.Instance.ShowPanel(m_SelectedPiece, tileBelow);
-                }
-
-                m_LastMoveWasWhite = m_SelectedPiece.IsWhite();
-                BoardFlipper.FlipCamera();
-                moveMade = true;
+                HandleDragRelease(tileBelow);
             }
-
-            if (!moveMade && m_OriginalTile != null)
+            else
             {
-                m_SelectedPiece.transform.position = m_OriginalTile.transform.position;
-                m_OriginalTile.SetPiece(m_SelectedPiece);
-                m_SelectedPiece.SetTile(m_OriginalTile);
-                m_SelectedPiece.transform.SetParent(m_OriginalTile.transform);
+                HandleClickRelease(tileBelow);
             }
 
-            m_SelectedPiece = null;
+            m_PointerDownTile = null;
+            m_PressedPiece = null;
         }
+    }
+
+    private void HandleDragRelease(Tile tileBelow)
+    {
+        Piece piece = m_DraggedPiece;
+        Tile originTile = m_DragOriginTile;
+
+        if (piece == null || originTile == null)
+        {
+            m_DraggedPiece = null;
+            m_DragOriginTile = null;
+            return;
+        }
+
+        bool releasedOnOrigin = tileBelow == originTile;
+
+        if (tileBelow != null && IsLegalMove(piece, originTile, tileBelow) && !releasedOnOrigin)
+        {
+            ExecuteMove(piece, originTile, tileBelow);
+            ClearSelection();
+        }
+        else
+        {
+            AttachPieceToTile(piece, originTile);
+
+            if (releasedOnOrigin && m_CurrentSelection == piece)
+            {
+                m_CurrentSelectionTile = originTile;
+                RefreshHighlights(piece, originTile);
+            }
+            else
+            {
+                ClearSelection();
+            }
+        }
+
+        m_DraggedPiece = null;
+        m_DragOriginTile = null;
+    }
+
+    private void HandleClickRelease(Tile tileBelow)
+    {
+        if (m_CurrentSelection == null || m_CurrentSelectionTile == null)
+        {
+            return;
+        }
+
+        if (tileBelow == m_CurrentSelectionTile)
+        {
+            RefreshHighlights(m_CurrentSelection, m_CurrentSelectionTile);
+            return;
+        }
+
+        if (tileBelow != null && tileBelow == m_PointerDownTile &&
+            m_HighlightedTiles.Contains(tileBelow) &&
+            IsLegalMove(m_CurrentSelection, m_CurrentSelectionTile, tileBelow))
+        {
+            ExecuteMove(m_CurrentSelection, m_CurrentSelectionTile, tileBelow);
+            ClearSelection();
+            return;
+        }
+
+        ClearSelection();
+    }
+
+    private void SetSelection(Piece piece, Tile originTile)
+    {
+        if (piece == null || originTile == null)
+        {
+            ClearSelection();
+            return;
+        }
+
+        if (m_CurrentSelection != piece)
+        {
+            ClearHighlights();
+        }
+
+        m_CurrentSelection = piece;
+        m_CurrentSelectionTile = originTile;
+        RefreshHighlights(piece, originTile);
+    }
+
+    private void RefreshHighlights(Piece piece, Tile originTile)
+    {
+        ClearHighlights();
+
+        if (piece == null || originTile == null)
+        {
+            return;
+        }
+
+        foreach (RowData rowData in m_Grid)
+        {
+            foreach (Tile tile in rowData.m_Row)
+            {
+                if (tile == null || tile == originTile)
+                {
+                    continue;
+                }
+
+                if (IsLegalMove(piece, originTile, tile))
+                {
+                    tile.ShowHighlight();
+                    m_HighlightedTiles.Add(tile);
+                }
+            }
+        }
+    }
+
+    private void ClearHighlights()
+    {
+        foreach (Tile tile in m_HighlightedTiles)
+        {
+            if (tile != null)
+            {
+                tile.HideHighlight();
+            }
+        }
+
+        m_HighlightedTiles.Clear();
+    }
+
+    private void ClearSelection()
+    {
+        ClearHighlights();
+        m_CurrentSelection = null;
+        m_CurrentSelectionTile = null;
+    }
+
+    private void AttachPieceToTile(Piece piece, Tile tile)
+    {
+        if (tile == null || piece == null)
+        {
+            return;
+        }
+
+        tile.SetPiece(piece);
+        piece.SetTile(tile);
+        piece.transform.position = tile.transform.position;
+        piece.transform.SetParent(tile.transform);
+    }
+
+    private void ExecuteMove(Piece piece, Tile fromTile, Tile toTile)
+    {
+        if (piece == null || toTile == null)
+        {
+            return;
+        }
+
+        if (fromTile != null && fromTile.GetCurrentPiece() == piece)
+        {
+            fromTile.ClearTile();
+        }
+
+        if (toTile.HasPiece())
+        {
+            Piece pieceToCapture = toTile.GetCurrentPiece();
+            bool isWhitePiece = pieceToCapture.IsWhite();
+            CapturedPieceUi capUi =
+                Instantiate(m_PiecePrefabUI,
+                        isWhitePiece ? m_CapturedPiecesWhiteTransform : m_CapturedPiecesBlackTransform)
+                    .GetComponent<CapturedPieceUi>();
+            capUi.SetupCapturedUiPiece(pieceToCapture.GetChessPiece());
+
+            Destroy(pieceToCapture.gameObject);
+            toTile.ClearTile();
+        }
+
+        AttachPieceToTile(piece, toTile);
+
+        if (piece.IsPawn() && (toTile.GetRow() == 0 || toTile.GetRow() == 7))
+        {
+            PromotionPanel.Instance.ShowPanel(piece, toTile);
+        }
+
+        m_LastMoveWasWhite = piece.IsWhite();
+        BoardFlipper.FlipCamera();
     }
 
     private Vector2Int GetCoords(Tile tile)
