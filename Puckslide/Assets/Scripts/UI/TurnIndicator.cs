@@ -19,6 +19,13 @@ public class TurnIndicator : MonoBehaviour
 
     private void Start()
     {
+        RectTransform rectTransform = transform as RectTransform;
+        if (rectTransform != null && rectTransform.GetComponentInParent<Canvas>() != null)
+        {
+            // This indicator is part of a UI canvas layout; keep the anchored position.
+            return;
+        }
+
         Transform board = BoardFlipper.GetBoardTransform();
         if (board != null)
         {
