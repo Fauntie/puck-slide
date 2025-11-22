@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 
 public interface NetTransport
 {
@@ -8,7 +9,8 @@ public interface NetTransport
 
     void Host(int port);
     void Connect(string address, int port);
-    void Disconnect(int peerId);
+    bool TryReconnect(string address, int port, int peerId);
+    void Disconnect(int peerId, bool allowGracefulReconnect = false, TimeSpan? graceWindow = null);
 
     void Send(int peerId, NetMessage message);
     bool TryReceive(out NetReceivedMessage message);

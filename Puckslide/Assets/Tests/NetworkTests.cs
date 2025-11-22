@@ -1,4 +1,7 @@
 using NUnit.Framework;
+using System;
+using System.Text;
+using System.Threading;
 
 public class NetMessageTests
 {
@@ -81,5 +84,138 @@ public class LoopbackTransportTests
         Assert.AreEqual(0, clientReceived.FromPeerId);
         Assert.AreEqual(response.Tick, clientReceived.Message.Tick);
         CollectionAssert.AreEqual(response.Payload, clientReceived.Message.Payload);
+    }
+}
+
+public class LoopbackReconnectTests
+{
+    [SetUp]
+    public void SetUp()
+    {
+        LoopbackTransport.ClearEndpoints();
+    }
+
+    [Test]
+    public void ClientCanReconnectWithinGraceWindow()
+    {
+        var host = new LoopbackTransport();
+        var client = new LoopbackTransport();
+
+        host.Host(8888);
+        client.Connect("localhost", 8888);
+
+        int peerId = client.LocalPeerId;
+        host.Disconnect(peerId, allowGracefulReconnect: true, graceWindow: TimeSpan.FromSeconds(2));
+
+        Assert.IsTrue(client.TryReconnect("localhost", 8888, peerId));
+        CollectionAssert.Contains(host.Peers, peerId);
+    }
+
+    [Test]
+    public void ReconnectFailsAfterGraceWindowExpires()
+    {
+        var host = new LoopbackTransport();
+        var client = new LoopbackTransport();
+
+        host.Host(9999);
+        client.Connect("localhost", 9999);
+
+        int peerId = client.LocalPeerId;
+        host.Disconnect(peerId, allowGracefulReconnect: true, graceWindow: TimeSpan.FromMilliseconds(25));
+
+        Thread.Sleep(40);
+
+        Assert.IsFalse(client.TryReconnect("localhost", 9999, peerId));
+    }
+}
+
+public class ResilientSessionManagerTests
+{
+    private class DummyState
+    {
+        public int Tick { get; set; }
+        public string Note { get; set; }
+    }
+
+    [Test]
+    public void PauseAndResumeFreezesAndRestoresState()
+    {
+        var transport = new LoopbackTransport();
+        var time = new ManualTimeProvider();
+        DummyState state = new DummyState { Tick = 4, Note = "live" };
+
+        var manager = new ResilientSessionManager<DummyState>(
+            transport,
+            time,
+            () => state,
+            SerializeDummy,
+            DeserializeDummy);
+
+        manager.Start("localhost", 0, 0);
+        manager.Pause();
+
+        state.Note = "mutated";
+
+        Assert.IsTrue(manager.TryGetFrozenState(out byte[] frozen));
+        Assert.IsTrue(manager.TryRestoreState(frozen, out DummyState restored));
+        Assert.AreEqual(4, restored.Tick);
+        Assert.AreEqual("live", restored.Note);
+
+        manager.Resume();
+        Assert.AreEqual(ResilientSessionStatus.Connected, manager.Status);
+    }
+
+    [Test]
+    public void NetworkHiccupTriggersRetriesAndReconnect()
+    {
+        LoopbackTransport.ClearEndpoints();
+
+        var host = new LoopbackTransport();
+        var client = new LoopbackTransport();
+        host.Host(7778);
+        client.Connect("localhost", 7778);
+
+        int peerId = client.LocalPeerId;
+        var time = new ManualTimeProvider();
+        var manager = new ResilientSessionManager<string>(
+            client,
+            time,
+            () => "session",
+            ResilientSessionSerializer.SerializeText,
+            ResilientSessionSerializer.DeserializeText,
+            hiccupTimeoutSeconds: 1.0,
+            reconnectGraceSeconds: 3.0,
+            retryIntervalSeconds: 0.5,
+            maxRetries: 3);
+
+        manager.Start("localhost", 7778, peerId);
+        manager.ConfirmConnected();
+
+        time.Advance(1.1);
+        manager.Update();
+        Assert.AreEqual(ResilientSessionStatus.Reconnecting, manager.Status);
+
+        host.Disconnect(peerId, allowGracefulReconnect: true, graceWindow: TimeSpan.FromSeconds(3));
+
+        time.Advance(0.5);
+        manager.Update();
+
+        Assert.AreEqual(ResilientSessionStatus.Connected, manager.Status);
+    }
+
+    private static byte[] SerializeDummy(DummyState state)
+    {
+        return Encoding.UTF8.GetBytes($"{state.Tick}:{state.Note}");
+    }
+
+    private static DummyState DeserializeDummy(byte[] payload)
+    {
+        string data = Encoding.UTF8.GetString(payload ?? Array.Empty<byte>());
+        string[] parts = data.Split(':');
+        return new DummyState
+        {
+            Tick = int.Parse(parts[0]),
+            Note = parts.Length > 1 ? parts[1] : string.Empty
+        };
     }
 }
