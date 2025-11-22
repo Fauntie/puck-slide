@@ -87,17 +87,20 @@ public class DeterministicTickSource
 public class TickSynchronizer
 {
     private readonly DeterministicTickSource m_LocalTickSource;
+    private readonly NetworkDiagnostics m_Diagnostics;
     private double m_RemoteToLocalOffsetSeconds;
 
-    public TickSynchronizer(DeterministicTickSource localTickSource)
+    public TickSynchronizer(DeterministicTickSource localTickSource, NetworkDiagnostics diagnostics = null)
     {
         m_LocalTickSource = localTickSource ?? throw new ArgumentNullException(nameof(localTickSource));
+        m_Diagnostics = diagnostics;
     }
 
     public void UpdateOffset(uint remoteTick, double localArrivalTimeSeconds)
     {
         double remoteTimeSeconds = remoteTick * m_LocalTickSource.TickDurationSeconds;
         m_RemoteToLocalOffsetSeconds = localArrivalTimeSeconds - remoteTimeSeconds;
+        m_Diagnostics?.RecordTickLatency(Math.Abs(m_RemoteToLocalOffsetSeconds));
     }
 
     public uint GetLocalTickForRemote(uint remoteTick)
