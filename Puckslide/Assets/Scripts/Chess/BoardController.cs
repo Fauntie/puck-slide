@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 [System.Serializable]
 public class RowData
@@ -70,6 +71,8 @@ public class BoardController : MonoBehaviour
     {
         ClearSelection();
 
+        ClearBoardPieces();
+
         if (layout == null)
         {
             return;
@@ -116,8 +119,34 @@ public class BoardController : MonoBehaviour
         }
     }
 
+    private void ClearBoardPieces()
+    {
+        foreach (RowData rowData in m_Grid)
+        {
+            foreach (Tile tile in rowData.m_Row)
+            {
+                if (tile == null)
+                {
+                    continue;
+                }
+
+                Piece existingPiece = tile.GetCurrentPiece();
+                if (existingPiece != null)
+                {
+                    Destroy(existingPiece.gameObject);
+                    tile.ClearTile();
+                }
+            }
+        }
+    }
+
     private void Update()
     {
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        {
+            return;
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
             Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
