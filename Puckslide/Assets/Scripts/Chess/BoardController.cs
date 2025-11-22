@@ -20,11 +20,13 @@ public class BoardController : MonoBehaviour
     private Transform m_CapturedPiecesWhiteTransform;
     [SerializeField]
     private Transform m_CapturedPiecesBlackTransform;
-    
+
+    [SerializeField]
+    private Color m_HighlightColor = new Color(0.83f, 0.66f, 0.13f);
+
     [SerializeField]
     private RowData[] m_Grid;
 
-    private Piece m_PressedPiece;
     private Piece m_DraggedPiece;
     private Tile m_DragOriginTile;
     private Piece m_CurrentSelection;
@@ -32,6 +34,7 @@ public class BoardController : MonoBehaviour
     private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
     private Tile m_PointerDownTile;
     private bool? m_LastMoveWasWhite = null;
+    private int? m_ActiveTouchId = null;
 
     private void OnEnable()
     {
@@ -58,7 +61,6 @@ public class BoardController : MonoBehaviour
         ClearSelection();
         m_DraggedPiece = null;
         m_DragOriginTile = null;
-        m_PressedPiece = null;
 
         Piece[] gamePieces = FindObjectsOfType<Piece>();
         foreach (Piece piece in gamePieces)
@@ -147,108 +149,212 @@ public class BoardController : MonoBehaviour
             return;
         }
 
+        if (TryGetPointerDown(out Vector3 pointerDownWorldPos))
+        {
+            HandlePointerDown(pointerDownWorldPos);
+        }
+
+        if (m_DraggedPiece != null && TryGetPointerPosition(out Vector3 pointerWorldPos))
+        {
+            UpdateDraggedPiecePosition(pointerWorldPos);
+            RefreshHighlights(m_DraggedPiece, m_DragOriginTile, m_HighlightColor);
+        }
+
+        if (TryGetPointerUp(out Vector3 pointerUpWorldPos))
+        {
+            HandlePointerUp(pointerUpWorldPos);
+        }
+    }
+
+    private bool TryGetPointerDown(out Vector3 worldPos)
+    {
+        if (Input.touchCount > 0)
+        {
+            foreach (Touch touch in Input.touches)
+            {
+                if (touch.phase == TouchPhase.Began)
+                {
+                    m_ActiveTouchId = touch.fingerId;
+                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
+                    return true;
+                }
+            }
+        }
+
         if (Input.GetMouseButtonDown(0))
         {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
-
-            Piece topmostPiece = null;
-            int topSortingOrder = int.MinValue;
-            Tile firstTile = null;
-
-            foreach (RaycastHit2D hit in hits)
-            {
-                if (firstTile == null)
-                {
-                    Tile tileHit = hit.collider.GetComponent<Tile>();
-                    if (tileHit != null)
-                    {
-                        firstTile = tileHit;
-                    }
-                }
-
-                Piece piece = hit.collider.GetComponent<Piece>();
-                if (piece != null)
-                {
-                    int order = piece.GetComponent<SpriteRenderer>().sortingOrder;
-                    if (order > topSortingOrder)
-                    {
-                        topmostPiece = piece;
-                        topSortingOrder = order;
-                    }
-                }
-            }
-
-            m_PointerDownTile = firstTile;
-
-            if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
-            {
-                Tile originTile = topmostPiece.GetCurrentTile();
-                if (originTile != null)
-                {
-                    SetSelection(topmostPiece, originTile);
-                    m_PressedPiece = topmostPiece;
-                    m_DragOriginTile = originTile;
-                }
-            }
+            m_ActiveTouchId = null;
+            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            return true;
         }
 
-        if (Input.GetMouseButton(0) && m_PressedPiece != null)
+        worldPos = Vector3.zero;
+        return false;
+    }
+
+    private bool TryGetPointerPosition(out Vector3 worldPos)
+    {
+        if (m_ActiveTouchId.HasValue)
         {
-            if (m_DraggedPiece == null)
+            foreach (Touch touch in Input.touches)
             {
-                m_DraggedPiece = m_PressedPiece;
-                m_PressedPiece = null;
-
-                if (m_DragOriginTile != null && m_DragOriginTile.GetCurrentPiece() == m_DraggedPiece)
+                if (touch.fingerId == m_ActiveTouchId.Value &&
+                    touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
                 {
-                    m_DragOriginTile.ClearTile();
+                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
+                    return true;
                 }
-
-                m_DraggedPiece.transform.SetParent(null);
             }
-
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            m_DraggedPiece.transform.position = new Vector3(mouseWorldPos.x,
-                mouseWorldPos.y,
-                -0.01f);
         }
-
-        if (Input.GetMouseButtonUp(0))
+        else if (Input.GetMouseButton(0))
         {
-            Vector3 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            RaycastHit2D[] hits = Physics2D.RaycastAll(mouseWorldPos, Vector2.zero);
+            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            return true;
+        }
 
-            Tile tileBelow = null;
+        worldPos = Vector3.zero;
+        return false;
+    }
 
-            foreach (RaycastHit2D hit in hits)
+    private bool TryGetPointerUp(out Vector3 worldPos)
+    {
+        if (m_ActiveTouchId.HasValue)
+        {
+            foreach (Touch touch in Input.touches)
             {
-                Tile t = hit.collider.GetComponent<Tile>();
-                if (t != null)
+                if (touch.fingerId == m_ActiveTouchId.Value &&
+                    (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled))
                 {
-                    tileBelow = t;
-                    break;
+                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
+                    return true;
+                }
+            }
+        }
+        else if (Input.GetMouseButtonUp(0))
+        {
+            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            return true;
+        }
+
+        worldPos = Vector3.zero;
+        return false;
+    }
+
+    private void HandlePointerDown(Vector3 pointerWorldPos)
+    {
+        RaycastHit2D[] hits = Physics2D.RaycastAll(pointerWorldPos, Vector2.zero);
+
+        Piece topmostPiece = null;
+        int topSortingOrder = int.MinValue;
+        Tile firstTile = null;
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            if (firstTile == null)
+            {
+                Tile tileHit = hit.collider.GetComponent<Tile>();
+                if (tileHit != null)
+                {
+                    firstTile = tileHit;
                 }
             }
 
-            if (m_DraggedPiece != null)
+            Piece piece = hit.collider.GetComponent<Piece>();
+            if (piece != null)
             {
-                HandleDragRelease(tileBelow);
+                int order = piece.GetComponent<SpriteRenderer>().sortingOrder;
+                if (order > topSortingOrder)
+                {
+                    topmostPiece = piece;
+                    topSortingOrder = order;
+                }
             }
-            else
-            {
-                HandleClickRelease(tileBelow);
-            }
-
-            m_PointerDownTile = null;
-            m_PressedPiece = null;
         }
+
+        m_PointerDownTile = firstTile;
+
+        if (topmostPiece != null && (m_LastMoveWasWhite == null || topmostPiece.IsWhite() != m_LastMoveWasWhite.Value))
+        {
+            Tile originTile = topmostPiece.GetCurrentTile();
+            if (originTile != null)
+            {
+                BeginDrag(topmostPiece, originTile, pointerWorldPos);
+            }
+        }
+        else
+        {
+            ClearSelection();
+        }
+    }
+
+    private void HandlePointerUp(Vector3 pointerWorldPos)
+    {
+        Tile tileBelow = FindTileBelow(pointerWorldPos);
+
+        if (m_DraggedPiece != null)
+        {
+            HandleDragRelease(tileBelow);
+        }
+        else
+        {
+            HandleClickRelease(tileBelow);
+        }
+
+        m_PointerDownTile = null;
+        m_ActiveTouchId = null;
+    }
+
+    private Tile FindTileBelow(Vector3 pointerWorldPos)
+    {
+        RaycastHit2D[] hits = Physics2D.RaycastAll(pointerWorldPos, Vector2.zero);
+
+        foreach (RaycastHit2D hit in hits)
+        {
+            Tile t = hit.collider.GetComponent<Tile>();
+            if (t != null)
+            {
+                return t;
+            }
+        }
+
+        return null;
+    }
+
+    private void BeginDrag(Piece piece, Tile originTile, Vector3 pointerWorldPos)
+    {
+        m_DraggedPiece = piece;
+        m_DragOriginTile = originTile;
+        m_CurrentSelection = piece;
+        m_CurrentSelectionTile = originTile;
+
+        if (m_DragOriginTile != null && m_DragOriginTile.GetCurrentPiece() == m_DraggedPiece)
+        {
+            m_DragOriginTile.ClearTile();
+        }
+
+        m_DraggedPiece.transform.SetParent(null);
+        UpdateDraggedPiecePosition(pointerWorldPos);
+        RefreshHighlights(piece, originTile, m_HighlightColor);
+    }
+
+    private void UpdateDraggedPiecePosition(Vector3 pointerWorldPos)
+    {
+        if (m_DraggedPiece == null)
+        {
+            return;
+        }
+
+        m_DraggedPiece.transform.position = new Vector3(pointerWorldPos.x,
+            pointerWorldPos.y,
+            -0.01f);
     }
 
     private void HandleDragRelease(Tile tileBelow)
     {
         Piece piece = m_DraggedPiece;
         Tile originTile = m_DragOriginTile;
+
+        ClearHighlights();
 
         if (piece == null || originTile == null)
         {
@@ -262,23 +368,13 @@ public class BoardController : MonoBehaviour
         if (tileBelow != null && IsLegalMove(piece, originTile, tileBelow) && !releasedOnOrigin)
         {
             ExecuteMove(piece, originTile, tileBelow);
-            ClearSelection();
         }
         else
         {
             AttachPieceToTile(piece, originTile);
-
-            if (releasedOnOrigin && m_CurrentSelection == piece)
-            {
-                m_CurrentSelectionTile = originTile;
-                RefreshHighlights(piece, originTile);
-            }
-            else
-            {
-                ClearSelection();
-            }
         }
 
+        ClearSelection();
         m_DraggedPiece = null;
         m_DragOriginTile = null;
     }
@@ -323,10 +419,15 @@ public class BoardController : MonoBehaviour
 
         m_CurrentSelection = piece;
         m_CurrentSelectionTile = originTile;
-        RefreshHighlights(piece, originTile);
+        RefreshHighlights(piece, originTile, m_HighlightColor);
     }
 
     private void RefreshHighlights(Piece piece, Tile originTile)
+    {
+        RefreshHighlights(piece, originTile, m_HighlightColor);
+    }
+
+    private void RefreshHighlights(Piece piece, Tile originTile, Color highlightColor)
     {
         ClearHighlights();
 
@@ -346,7 +447,7 @@ public class BoardController : MonoBehaviour
 
                 if (IsLegalMove(piece, originTile, tile))
                 {
-                    tile.ShowHighlight();
+                    tile.ShowHighlight(highlightColor);
                     m_HighlightedTiles.Add(tile);
                 }
             }
