@@ -448,7 +448,11 @@ public class PuckController : MonoBehaviour
         yield return new WaitForFixedUpdate();
         yield return new WaitUntil(() => m_Rigidbody.velocity.magnitude <= STOP_THRESHOLD);
 
-        if (m_HasReachedBoard)
+        // In Phase 2, pieces start on the board already, so we should not
+        // gate the turn change on crossing the BoardTrigger.
+        bool shouldAdvanceTurn = Phase2Manager.IsPhase2Active || m_HasReachedBoard;
+
+        if (shouldAdvanceTurn)
         {
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
