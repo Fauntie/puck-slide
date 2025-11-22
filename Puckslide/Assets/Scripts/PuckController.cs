@@ -509,6 +509,12 @@ public class PuckController : MonoBehaviour
 
     public bool IsWhitePiece => (int)ChessPiece >= 6;
 
+    public bool IsSticky => m_IsSticky;
+
+    public Vector2 Velocity => m_Rigidbody != null ? m_Rigidbody.velocity : Vector2.zero;
+
+    public float AngularVelocity => m_Rigidbody != null ? m_Rigidbody.angularVelocity : 0f;
+
     public static bool IsWhiteTurn => s_IsWhiteTurn;
 
     public static void ResetTurnOrder()
