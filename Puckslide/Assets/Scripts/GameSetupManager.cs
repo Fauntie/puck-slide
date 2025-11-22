@@ -1,71 +1,38 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-public enum ChessPieceType
-{
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King
-}
-
-[System.Serializable]
-public class PieceSetupData
-{
-    public ChessPieceType Type;
-    public int WhiteCount;
-    public int BlackCount;
-    public bool Sticky;
-}
-
 public class GameSetupManager : MonoBehaviour
 {
-    private const int MAX_PIECES_PER_COLOR = 16;
-
     public event Action CountsChanged;
-    
+
     [SerializeField]
-    private PieceSetupData[] m_PieceSetup = new PieceSetupData[]
-    {
-        new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-        new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-        new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-    };
+    private PieceSetupData[] m_DefaultPieceSetup = PieceSetupState.CreateDefaultSetup().ToArray();
 
     [SerializeField]
     private GameObject m_Phase1Canvas;
     [SerializeField]
     private GameObject Phase1Environment;
-    
+
+    private PieceSetupState m_PieceSetupState;
+
 
     private void OnEnable()
     {
         EventsManager.OnDeletePucks.Invoke(true);
         PuckController.ResetTurnOrder();
 
-        m_PieceSetup = new PieceSetupData[]
+        if (m_DefaultPieceSetup == null || m_DefaultPieceSetup.Length == 0)
         {
-            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-        };
+            m_DefaultPieceSetup = PieceSetupState.CreateDefaultSetup().ToArray();
+        }
+
+        m_PieceSetupState = new PieceSetupState(m_DefaultPieceSetup);
     }
 
     public void StartButton()
     {
-        EventsManager.OnPieceSetupData.Invoke(m_PieceSetup);
+        EventsManager.OnPieceSetupData.Invoke(m_PieceSetupState.GetSnapshot().ToArray());
         m_Phase1Canvas.SetActive(true);
         Phase1Environment.SetActive(true);
         gameObject.SetActive(false);
@@ -74,159 +41,52 @@ public class GameSetupManager : MonoBehaviour
 
     public bool IncreaseCount(ChessPieceType pieceType, bool isWhite)
     {
-        PieceSetupData setupData = FindPieceSetupData(pieceType);
-        if (setupData == null)
-        {
-            Debug.LogWarning($"No PieceSetupData found for {pieceType}");
-            NotifyCountsChanged();
-            return false;
-        }
-
-        if (!CanIncrease(pieceType, isWhite))
-        {
-            NotifyCountsChanged();
-            return false;
-        }
-
-        if (isWhite)
-        {
-            setupData.WhiteCount++;
-        }
-        else
-        {
-            setupData.BlackCount++;
-        }
-
+        bool changed = m_PieceSetupState.IncreaseCount(pieceType, isWhite);
         NotifyCountsChanged();
-        return true;
+        return changed;
     }
 
     public bool DecreaseCount(ChessPieceType pieceType, bool isWhite)
     {
-        PieceSetupData setupData = FindPieceSetupData(pieceType);
-        if (setupData == null)
-        {
-            Debug.LogWarning($"No PieceSetupData found for {pieceType}");
-            NotifyCountsChanged();
-            return false;
-        }
-
-        if (!CanDecrease(pieceType, isWhite))
-        {
-            NotifyCountsChanged();
-            return false;
-        }
-
-        if (isWhite)
-        {
-            setupData.WhiteCount--;
-        }
-        else
-        {
-            setupData.BlackCount--;
-        }
-
+        bool changed = m_PieceSetupState.DecreaseCount(pieceType, isWhite);
         NotifyCountsChanged();
-        return true;
+        return changed;
     }
 
     public void ToggleSticky(ChessPieceType pieceType, bool isSticky)
     {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
-        {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                m_PieceSetup[i].Sticky = isSticky;
-                return;
-            }
-        }
+        m_PieceSetupState.ToggleSticky(pieceType, isSticky);
     }
 
     public int GetCount(ChessPieceType pieceType, bool isWhite)
     {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
-        {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                return isWhite ? m_PieceSetup[i].WhiteCount : m_PieceSetup[i].BlackCount;
-            }
-        }
-
-        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
-        return 0;
+        return m_PieceSetupState.GetCount(pieceType, isWhite);
     }
 
     public bool GetSticky(ChessPieceType pieceType)
     {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
-        {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                return m_PieceSetup[i].Sticky;
-            }
-        }
-
-        Debug.LogWarning($"No PieceSetupData found for {pieceType}");
-        return false;
+        return m_PieceSetupState.GetSticky(pieceType);
     }
 
 
     public bool WithinWhiteCount()
     {
-        return GetTotalCount(true) < MAX_PIECES_PER_COLOR;
+        return m_PieceSetupState.GetTotalCount(true) < PieceSetupState.MaxPiecesPerColor;
     }
 
     public bool WithinBlackCount()
     {
-        return GetTotalCount(false) < MAX_PIECES_PER_COLOR;
+        return m_PieceSetupState.GetTotalCount(false) < PieceSetupState.MaxPiecesPerColor;
     }
 
     public bool CanIncrease(ChessPieceType pieceType, bool isWhite)
     {
-        PieceSetupData setupData = FindPieceSetupData(pieceType);
-        if (setupData == null)
-        {
-            return false;
-        }
-
-        int currentCount = isWhite ? setupData.WhiteCount : setupData.BlackCount;
-        if (currentCount >= MAX_PIECES_PER_COLOR)
-        {
-            return false;
-        }
-
-        int totalCount = GetTotalCount(isWhite);
-        return totalCount + 1 <= MAX_PIECES_PER_COLOR;
+        return m_PieceSetupState.CanIncrease(pieceType, isWhite);
     }
 
     public bool CanDecrease(ChessPieceType pieceType, bool isWhite)
     {
-        PieceSetupData setupData = FindPieceSetupData(pieceType);
-        if (setupData == null)
-        {
-            return false;
-        }
-
-        int currentCount = isWhite ? setupData.WhiteCount : setupData.BlackCount;
-        return currentCount > 0;
-    }
-
-    private PieceSetupData FindPieceSetupData(ChessPieceType pieceType)
-    {
-        for (int i = 0; i < m_PieceSetup.Length; i++)
-        {
-            if (m_PieceSetup[i].Type == pieceType)
-            {
-                return m_PieceSetup[i];
-            }
-        }
-
-        return null;
-    }
-
-    private int GetTotalCount(bool isWhite)
-    {
-        return m_PieceSetup.Sum(piece => isWhite ? piece.WhiteCount : piece.BlackCount);
+        return m_PieceSetupState.CanDecrease(pieceType, isWhite);
     }
 
     private void NotifyCountsChanged()
