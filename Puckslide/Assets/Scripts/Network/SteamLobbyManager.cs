@@ -2,6 +2,7 @@ using System;
 
 #if STEAMWORKSNET
 using Steamworks;
+using UnityEngine;
 #endif
 
 public class SteamLobbyManager
@@ -20,6 +21,7 @@ public class SteamLobbyManager
 
     public event Action<CSteamID> OnLobbyReady;
     public event Action<CSteamID> OnLobbyJoin;
+    public event Action<string> OnVersionMismatch;
 
     public SteamLobbyManager()
     {
@@ -61,7 +63,7 @@ public class SteamLobbyManager
         }
 
         CurrentLobby = new CSteamID(data.m_ulSteamIDLobby);
-        SteamLobbyUtility.SetMetadata(CurrentLobby, m_PendingMode, m_PendingRegion, string.IsNullOrEmpty(m_PendingVersion) ? SteamUtils.GetAppID().ToString() : m_PendingVersion);
+        SteamLobbyUtility.SetMetadata(CurrentLobby, m_PendingMode, m_PendingRegion, string.IsNullOrEmpty(m_PendingVersion) ? Application.version : m_PendingVersion);
         LastDeeplink = SteamLobbyUtility.BuildDeeplink(CurrentLobby, SteamUser.GetSteamID());
         OnLobbyReady?.Invoke(CurrentLobby);
     }
@@ -69,6 +71,17 @@ public class SteamLobbyManager
     private void HandleLobbyEntered(LobbyEnter_t data)
     {
         CurrentLobby = new CSteamID(data.m_ulSteamIDLobby);
+
+        string lobbyVersion = SteamMatchmaking.GetLobbyData(CurrentLobby, SteamLobbyUtility.VersionKey);
+        string expectedVersion = string.IsNullOrEmpty(m_PendingVersion) ? Application.version : m_PendingVersion;
+        if (!string.IsNullOrEmpty(lobbyVersion) && !string.Equals(lobbyVersion, expectedVersion, StringComparison.OrdinalIgnoreCase))
+        {
+            OnVersionMismatch?.Invoke(lobbyVersion);
+            SteamMatchmaking.LeaveLobby(CurrentLobby);
+            CurrentLobby = CSteamID.Nil;
+            return;
+        }
+
         OnLobbyJoin?.Invoke(CurrentLobby);
     }
 
@@ -86,5 +99,7 @@ public class SteamLobbyManager
     public void JoinLobby(string lobbyId)
     {
     }
+
+    public event Action<string> OnVersionMismatch;
 #endif
 }
