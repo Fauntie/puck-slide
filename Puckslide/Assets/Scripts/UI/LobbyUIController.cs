@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if STEAMWORKSNET
 using Steamworks;
@@ -28,6 +30,26 @@ public class LobbyUIController : MonoBehaviour
     private Toggle m_EnableTelemetryToggle;
     [SerializeField]
     private Toggle m_EnableCrashReportsToggle;
+    [SerializeField]
+    private NetworkStatusHUD m_NetworkStatusHUD;
+    [SerializeField]
+    private InputField m_InviteCodeInput;
+    [SerializeField]
+    private Button m_SendInviteButton;
+    [SerializeField]
+    private Toggle m_ReadyToggle;
+    [SerializeField]
+    private Text m_ReadyStateLabel;
+    [SerializeField]
+    private InputField m_ChatInput;
+    [SerializeField]
+    private Text m_ChatLog;
+    [SerializeField]
+    private Dropdown m_QuickEmoteDropdown;
+
+    [Header("Localized Strings")]
+    [SerializeField]
+    private LobbyLocalizationStrings m_Localization = new LobbyLocalizationStrings();
 
     private LobbyStateMachine m_Lobby;
     private ManualTimeProvider m_TimeProvider;
@@ -39,6 +61,7 @@ public class LobbyUIController : MonoBehaviour
     private bool m_QuickplayInProgress;
     private string m_StatusOverride = string.Empty;
     private NetworkDiagnostics m_Diagnostics;
+    private readonly List<string> m_ChatHistory = new List<string>();
 
     private void Awake()
     {
@@ -73,9 +96,30 @@ public class LobbyUIController : MonoBehaviour
             diagnostics: m_Diagnostics);
         m_SessionManager.OnStatusChanged += OnSessionStatusChanged;
 
+        if (m_NetworkStatusHUD != null)
+        {
+            m_NetworkStatusHUD.Bind(m_Diagnostics, m_SessionManager, m_Localization);
+        }
+
         if (m_VersionLabel != null)
         {
-            m_VersionLabel.text = $"Version {Application.version}";
+            m_VersionLabel.text = string.Format(m_Localization.VersionFormat, Application.version);
+        }
+
+        if (m_SendInviteButton != null)
+        {
+            m_SendInviteButton.onClick.AddListener(OnSendInviteClicked);
+        }
+
+        if (m_ReadyToggle != null)
+        {
+            m_ReadyToggle.onValueChanged.AddListener(OnReadyToggled);
+            RefreshReadyState(false);
+        }
+
+        if (m_QuickEmoteDropdown != null)
+        {
+            m_QuickEmoteDropdown.onValueChanged.AddListener(OnQuickEmoteSelected);
         }
 
         if (SteamLobbyUtility.IsAvailable)
@@ -89,6 +133,7 @@ public class LobbyUIController : MonoBehaviour
             m_Quickplay.OnStatusChanged += SetStatusOverride;
         }
 
+        FocusFirstSelectable();
         UpdateStatus();
     }
 
@@ -120,6 +165,12 @@ public class LobbyUIController : MonoBehaviour
         }
 
         m_SessionManager?.Update();
+        m_NetworkStatusHUD?.Tick();
+
+        if (m_ChatInput != null && Input.GetKeyDown(KeyCode.Return))
+        {
+            SubmitChat();
+        }
     }
 
     public void OnHostClicked()
@@ -151,8 +202,7 @@ public class LobbyUIController : MonoBehaviour
 
     public void OnReadyClicked()
     {
-        m_Lobby.MarkReady();
-        UpdateStatus();
+        OnReadyToggled(true);
     }
 
     public void OnStartClicked()
@@ -172,6 +222,7 @@ public class LobbyUIController : MonoBehaviour
             m_UpdatePromptPanel.SetActive(false);
         }
         UpdateStatus();
+        RefreshReadyState(false);
     }
 
     public void OnPauseClicked()
@@ -190,20 +241,20 @@ public class LobbyUIController : MonoBehaviour
     {
         if (!m_UsingSteam || m_SteamLobbyManager == null || m_Quickplay == null)
         {
-            SetStatusOverride("Quickplay requires Steam matchmaking.");
+            SetStatusOverride(m_Localization.QuickplayRequiresSteam);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(m_PlayerNameInput.text))
         {
-            SetStatusOverride("Enter a player name before quickplay.");
+            SetStatusOverride(m_Localization.QuickplayMissingName);
             return;
         }
 
         m_QuickplayInProgress = true;
         string region = GetSelectedRegion();
         m_Quickplay.BeginQuickplay(2, "quickplay", region, Application.version);
-        SetStatusOverride(string.IsNullOrEmpty(region) ? "Searching for a quickplay match..." : $"Searching in {region} region...");
+        SetStatusOverride(string.IsNullOrEmpty(region) ? m_Localization.QuickplaySearching : string.Format(m_Localization.QuickplayRegionFormat, region));
     }
 
     private void BeginResilientTracking()
@@ -222,6 +273,7 @@ public class LobbyUIController : MonoBehaviour
     private void OnSessionStatusChanged(ResilientSessionStatus status, string message)
     {
         UpdateStatus();
+        m_NetworkStatusHUD?.UpdateSessionStatus(status, message);
     }
 
     private void OnTelemetryToggled(bool enabled)
@@ -260,7 +312,7 @@ public class LobbyUIController : MonoBehaviour
         m_Lobby.Host(m_PlayerNameInput.text, sessionCode);
         BeginResilientTracking();
         m_QuickplayInProgress = false;
-        SetStatusOverride("Hosting a new quickplay lobby...");
+        SetStatusOverride(m_Localization.QuickplayHostLobby);
     }
 
     private void OnSteamLobbyJoin(CSteamID lobbyId)
@@ -285,13 +337,13 @@ public class LobbyUIController : MonoBehaviour
         m_Lobby.Join(m_PlayerNameInput.text, sessionCode);
         BeginResilientTracking();
         m_QuickplayInProgress = false;
-        SetStatusOverride("Joining quickplay lobby...");
+        SetStatusOverride(m_Localization.QuickplayJoiningLobby);
     }
 
     private void OnSteamVersionMismatch(string lobbyVersion)
     {
         m_QuickplayInProgress = false;
-        string message = $"Version mismatch. Lobby is on {lobbyVersion}, you are on {Application.version}. Please update to play.";
+        string message = string.Format(m_Localization.VersionMismatchFormat, lobbyVersion, Application.version);
         SetStatusOverride(message);
 
         if (m_UpdatePromptPanel != null)
@@ -328,6 +380,113 @@ public class LobbyUIController : MonoBehaviour
         m_StatusOverride = string.Empty;
     }
 
+    private void OnSendInviteClicked()
+    {
+        string inviteCode = m_InviteCodeInput != null ? m_InviteCodeInput.text : string.Empty;
+        if (string.IsNullOrWhiteSpace(inviteCode))
+        {
+            SetStatusOverride(m_Localization.InviteMissingCode);
+            return;
+        }
+
+        SetStatusOverride(string.Format(m_Localization.InviteSentFormat, inviteCode.Trim()));
+    }
+
+    private void OnReadyToggled(bool ready)
+    {
+        RefreshReadyState(ready);
+
+        if (ready && (m_Lobby.State == LobbyState.Hosting || m_Lobby.State == LobbyState.Joining))
+        {
+            m_Lobby.MarkReady();
+            UpdateStatus();
+        }
+    }
+
+    private void RefreshReadyState(bool ready)
+    {
+        if (m_ReadyStateLabel != null)
+        {
+            m_ReadyStateLabel.text = ready ? m_Localization.ReadyStateReady : m_Localization.ReadyStateNotReady;
+        }
+
+        if (m_ReadyToggle != null && m_ReadyToggle.isOn != ready)
+        {
+            m_ReadyToggle.isOn = ready;
+        }
+    }
+
+    public void SubmitChat()
+    {
+        if (m_ChatInput == null)
+        {
+            return;
+        }
+
+        string message = m_ChatInput.text;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        string playerName = m_PlayerNameInput != null && !string.IsNullOrWhiteSpace(m_PlayerNameInput.text)
+            ? m_PlayerNameInput.text
+            : m_Localization.UnknownPlayerName;
+        AppendChatLine(string.Format(m_Localization.ChatLineFormat, playerName, message.Trim()));
+        m_ChatInput.text = string.Empty;
+    }
+
+    private void OnQuickEmoteSelected(int index)
+    {
+        if (m_QuickEmoteDropdown == null || index < 0 || index >= m_QuickEmoteDropdown.options.Count)
+        {
+            return;
+        }
+
+        string emote = m_QuickEmoteDropdown.options[index].text;
+        string playerName = m_PlayerNameInput != null && !string.IsNullOrWhiteSpace(m_PlayerNameInput.text)
+            ? m_PlayerNameInput.text
+            : m_Localization.UnknownPlayerName;
+        AppendChatLine(string.Format(m_Localization.EmoteBroadcastFormat, playerName, emote));
+    }
+
+    private void AppendChatLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return;
+        }
+
+        m_ChatHistory.Add(line);
+        const int maxHistory = 20;
+        if (m_ChatHistory.Count > maxHistory)
+        {
+            m_ChatHistory.RemoveAt(0);
+        }
+
+        if (m_ChatLog != null)
+        {
+            m_ChatLog.text = string.Join("\n", m_ChatHistory);
+        }
+    }
+
+    private void FocusFirstSelectable()
+    {
+        if (EventSystem.current == null)
+        {
+            return;
+        }
+
+        if (m_PlayerNameInput != null)
+        {
+            EventSystem.current.SetSelectedGameObject(m_PlayerNameInput.gameObject);
+        }
+        else if (m_SessionCodeInput != null)
+        {
+            EventSystem.current.SetSelectedGameObject(m_SessionCodeInput.gameObject);
+        }
+    }
+
     private void UpdateStatus()
     {
         if (m_StatusLabel == null)
@@ -344,26 +503,57 @@ public class LobbyUIController : MonoBehaviour
             switch (m_Lobby.State)
             {
                 case LobbyState.Idle:
-                    m_StatusLabel.text = "Enter a name and session to host or join.";
+                    m_StatusLabel.text = m_Localization.IdlePrompt;
                     break;
                 case LobbyState.Hosting:
-                    m_StatusLabel.text = $"Hosting {m_Lobby.SessionCode} as {m_Lobby.PlayerName}.";
+                    m_StatusLabel.text = string.Format(m_Localization.HostingFormat, m_Lobby.SessionCode, m_Lobby.PlayerName);
                     break;
                 case LobbyState.Joining:
-                    m_StatusLabel.text = $"Joining {m_Lobby.SessionCode} as {m_Lobby.PlayerName}.";
+                    m_StatusLabel.text = string.Format(m_Localization.JoiningFormat, m_Lobby.SessionCode, m_Lobby.PlayerName);
                     break;
                 case LobbyState.Ready:
-                    m_StatusLabel.text = "Ready to start.";
+                    m_StatusLabel.text = m_Localization.ReadyPrompt;
                     break;
                 case LobbyState.Starting:
-                    m_StatusLabel.text = "Starting match...";
+                    m_StatusLabel.text = m_Localization.StartingPrompt;
                     break;
             }
         }
 
         if (m_NetworkStatusLabel != null && m_SessionManager != null)
         {
-            m_NetworkStatusLabel.text = $"Network: {m_SessionManager.Status} - {m_SessionManager.StatusMessage}";
+            m_NetworkStatusLabel.text = string.Format(m_Localization.NetworkStatusFormat, m_SessionManager.Status, m_SessionManager.StatusMessage);
         }
     }
+}
+
+[Serializable]
+public class LobbyLocalizationStrings
+{
+    public string IdlePrompt = "Enter a name and session to host or join.";
+    public string HostingFormat = "Hosting {0} as {1}.";
+    public string JoiningFormat = "Joining {0} as {1}.";
+    public string ReadyPrompt = "Ready to start.";
+    public string StartingPrompt = "Starting match...";
+    public string NetworkStatusFormat = "Network: {0} - {1}";
+    public string VersionFormat = "Version {0}";
+    public string VersionMismatchFormat = "Version mismatch. Lobby is on {0}, you are on {1}. Please update to play.";
+    public string QuickplayRequiresSteam = "Quickplay requires Steam matchmaking.";
+    public string QuickplayMissingName = "Enter a player name before quickplay.";
+    public string QuickplaySearching = "Searching for a quickplay match...";
+    public string QuickplayRegionFormat = "Searching in {0} region...";
+    public string QuickplayHostLobby = "Hosting a new quickplay lobby...";
+    public string QuickplayJoiningLobby = "Joining quickplay lobby...";
+    public string InviteMissingCode = "Enter a friend code before inviting.";
+    public string InviteSentFormat = "Invite sent to {0}.";
+    public string ReadyStateReady = "Ready";
+    public string ReadyStateNotReady = "Not ready";
+    public string PingFormat = "Ping: {0} ms";
+    public string PacketLossFormat = "Packet Loss: {0}";
+    public string RollbackFormat = "Rollbacks: {0}";
+    public string ReconnectingPrompt = "Connection interrupted. Attempting to reconnect...";
+    public string ReconnectFailedPrompt = "Reconnect failed. Please try again.";
+    public string ChatLineFormat = "{0}: {1}";
+    public string EmoteBroadcastFormat = "{0} sent emote {1}";
+    public string UnknownPlayerName = "Player";
 }
