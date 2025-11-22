@@ -440,7 +440,6 @@ public class BoardController : MonoBehaviour
         }
 
         m_LastMoveWasWhite = piece.IsWhite();
-        BoardFlipper.FlipCamera();
     }
 
     private Vector2Int GetCoords(Tile tile)

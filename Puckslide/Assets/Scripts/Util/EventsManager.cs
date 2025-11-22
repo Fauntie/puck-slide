@@ -12,6 +12,7 @@ public static class EventsManager
     public static readonly Evt<Rigidbody2D> OnPuckDespawned = new Evt<Rigidbody2D>();
     public static readonly Evt<bool> OnTurnChanged = new Evt<bool>(true);
     public static readonly Evt<bool> OnBoardFlipState = new Evt<bool>();
+    public static readonly Evt<LobbySnapshot> OnLobbySnapshot = new Evt<LobbySnapshot>();
 }
 
 

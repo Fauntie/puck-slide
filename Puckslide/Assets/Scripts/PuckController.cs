@@ -24,6 +24,12 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private float m_MaxDragMultiplier = 4f; // allowed pull distance in puck diameters
 
+    [SerializeField]
+    private float m_RemoteEntrySpeed = 4f;
+
+    [SerializeField]
+    private float m_RemoteFadeDuration = 0.15f;
+
     private Vector3 m_DragStartPos;
     private Camera m_Camera;
 
@@ -51,6 +57,7 @@ public class PuckController : MonoBehaviour
     private float m_BottomEntryY;
     private float m_TopEntryY;
     private float m_HalfBoardY;
+    private bool m_RemoteSpawnPositioned;
 
     private Vector3 m_StartPosition;
     private bool m_HasReachedBoard;
@@ -109,6 +116,7 @@ public class PuckController : MonoBehaviour
 
         UpdateBoardEntryLines();
         m_StartPosition = transform.position;
+        PositionForRemoteEntryIfNeeded();
     }
 
     // Recalculate the entry lines at the top and bottom of the board.
@@ -474,14 +482,6 @@ public class PuckController : MonoBehaviour
         {
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
-            if (Phase2Manager.IsPhase2Active)
-            {
-                BoardFlipper.FlipCamera();
-            }
-            else
-            {
-                yield return BoardFlipper.Flip();
-            }
             EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
         }
         else
@@ -502,6 +502,56 @@ public class PuckController : MonoBehaviour
         {
             m_HasReachedBoard = true;
         }
+    }
+
+    private void PositionForRemoteEntryIfNeeded()
+    {
+        if (Phase2Manager.IsPhase2Active)
+        {
+            return;
+        }
+
+        bool isRemotePlayerPiece = LobbyState.LocalIsWhitePlayer != IsWhitePiece;
+        if (!isRemotePlayerPiece || m_RemoteSpawnPositioned)
+        {
+            return;
+        }
+
+        float radius = m_Collider != null ? m_Collider.bounds.extents.y : 0.1f;
+        Vector3 spawnPos = transform.position;
+        spawnPos.y = m_TopEntryY + radius;
+        transform.position = spawnPos;
+        if (m_Rigidbody != null)
+        {
+            m_Rigidbody.position = spawnPos;
+            m_Rigidbody.velocity = Vector2.down * m_RemoteEntrySpeed;
+        }
+
+        if (m_RemoteFadeDuration > 0f && m_SpriteRenderer != null)
+        {
+            StartCoroutine(FadeInSprite());
+        }
+
+        m_RemoteSpawnPositioned = true;
+    }
+
+    private IEnumerator FadeInSprite()
+    {
+        float elapsed = 0f;
+        Color startColor = m_SpriteRenderer.color;
+        startColor.a = 0f;
+        Color endColor = m_SpriteRenderer.color;
+        m_SpriteRenderer.color = startColor;
+
+        while (elapsed < m_RemoteFadeDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / m_RemoteFadeDuration);
+            m_SpriteRenderer.color = Color.Lerp(startColor, endColor, t);
+            yield return null;
+        }
+
+        m_SpriteRenderer.color = endColor;
     }
 
     public Vector2Int CurrentGridPosition { get; private set; } // Store the grid position of this puck

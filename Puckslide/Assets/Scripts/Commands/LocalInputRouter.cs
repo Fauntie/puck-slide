@@ -14,6 +14,7 @@ public class LocalInputRouter : MonoBehaviour
     private int m_ActivePointerId = -1;
     private PlayerCommandTarget m_ActiveTarget = PlayerCommandTarget.Board;
     private int m_ActiveInstanceId = -1;
+    private bool m_InputLocked;
 
     private void Awake()
     {
@@ -28,9 +29,26 @@ public class LocalInputRouter : MonoBehaviour
         }
     }
 
+    private void OnEnable()
+    {
+        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
+    }
+
+    private void OnDisable()
+    {
+        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
+    }
+
     private void Update()
     {
         if (m_Dispatcher == null || m_Camera == null)
+        {
+            return;
+        }
+
+        if (m_InputLocked)
         {
             return;
         }
@@ -170,5 +188,15 @@ public class LocalInputRouter : MonoBehaviour
 
         worldPos = Vector3.zero;
         return false;
+    }
+
+    private void OnTurnChanged(bool isWhiteTurn)
+    {
+        m_InputLocked = isWhiteTurn != LobbyState.LocalIsWhitePlayer;
+    }
+
+    private void OnLobbySnapshot(LobbySnapshot _)
+    {
+        m_InputLocked = PuckController.IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
     }
 }
