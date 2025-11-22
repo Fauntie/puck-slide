@@ -112,8 +112,13 @@ public class GridManager : MonoBehaviour
                 m_PieceLayout[puck.CurrentGridPosition] = puck.ChessPiece;
             }
         }
-        
+
         EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
+    }
+
+    public Dictionary<Vector2Int, ChessPiece> GetLayoutCopy()
+    {
+        return new Dictionary<Vector2Int, ChessPiece>(m_PieceLayout);
     }
 
     void OnDrawGizmos()
