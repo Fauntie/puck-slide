@@ -1,5 +1,8 @@
 using UnityEngine;
 using UnityEngine.UI;
+#if STEAMWORKSNET
+using Steamworks;
+#endif
 
 public class LobbyUIController : MonoBehaviour
 {
@@ -15,11 +18,15 @@ public class LobbyUIController : MonoBehaviour
     private LobbyStateMachine m_Lobby;
     private ManualTimeProvider m_TimeProvider;
     private ResilientSessionManager<string> m_SessionManager;
+    private NetTransport m_Transport;
+    private bool m_UsingSteam;
 
     private void Awake()
     {
         m_TimeProvider = new ManualTimeProvider();
-        m_Lobby = new LobbyStateMachine(new LoopbackTransport());
+        m_Transport = SteamTransport.IsPlatformSupported ? (NetTransport)new SteamTransport() : new LoopbackTransport();
+        m_UsingSteam = m_Transport is SteamTransport;
+        m_Lobby = new LobbyStateMachine(m_Transport);
         m_SessionManager = new ResilientSessionManager<string>(
             m_Lobby.Transport,
             m_TimeProvider,
@@ -50,7 +57,16 @@ public class LobbyUIController : MonoBehaviour
 
     public void OnHostClicked()
     {
-        m_Lobby.Host(m_PlayerNameInput.text, m_SessionCodeInput.text);
+        string sessionCode = m_SessionCodeInput.text;
+
+#if STEAMWORKSNET
+        if (m_UsingSteam)
+        {
+            sessionCode = SteamUser.GetSteamID().m_SteamID.ToString();
+        }
+#endif
+
+        m_Lobby.Host(m_PlayerNameInput.text, sessionCode);
         BeginResilientTracking();
         UpdateStatus();
     }
@@ -101,7 +117,8 @@ public class LobbyUIController : MonoBehaviour
         }
 
         int port = LobbySessionCodeUtility.GetPort(m_Lobby.SessionCode);
-        m_SessionManager.Start("localhost", port, m_Lobby.Transport.LocalPeerId);
+        string address = m_UsingSteam ? m_Lobby.SessionCode : "localhost";
+        m_SessionManager.Start(address, port, m_Lobby.Transport.LocalPeerId);
         m_SessionManager.ConfirmConnected();
     }
 
