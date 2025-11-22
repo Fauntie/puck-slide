@@ -66,4 +66,34 @@ namespace Puckslide.Networking
         public double ClientTime;
         public double ServerTime;
     }
+
+    [Serializable]
+    public class PlayerCommandMessage
+    {
+        public string LobbyId;
+        public PlayerCommand Command;
+        public double ClientTime;
+        public double ServerTime;
+    }
+
+    [Serializable]
+    public class PuckStateSnapshotMessage
+    {
+        public string LobbyId;
+        public bool IsWhiteTurn;
+        public uint TurnNumber;
+        public bool IsPhase2Active;
+        public PuckState[] Pucks;
+        public double ServerTime;
+    }
+
+    [Serializable]
+    public class TurnDeterminismMessage
+    {
+        public string LobbyId;
+        public uint TurnNumber;
+        public int RandomSeed;
+        public GameStateSnapshot Snapshot;
+        public double ServerTime;
+    }
 }

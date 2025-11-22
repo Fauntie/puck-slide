@@ -22,6 +22,9 @@ namespace Puckslide.Networking
         public static readonly NetworkEvt<PuckSpawnMessage> OnNetworkPuckSpawned = new NetworkEvt<PuckSpawnMessage>();
         public static readonly NetworkEvt<PuckDespawnMessage> OnNetworkPuckDespawned = new NetworkEvt<PuckDespawnMessage>();
         public static readonly NetworkEvt<ShotLaunchMessage> OnShotLaunched = new NetworkEvt<ShotLaunchMessage>();
+        public static readonly NetworkEvt<PlayerCommandMessage> OnPlayerCommandSubmitted = new NetworkEvt<PlayerCommandMessage>();
+        public static readonly NetworkEvt<PuckStateSnapshotMessage> OnPuckSnapshot = new NetworkEvt<PuckStateSnapshotMessage>();
+        public static readonly NetworkEvt<TurnDeterminismMessage> OnTurnDeterminism = new NetworkEvt<TurnDeterminismMessage>();
     }
 
     public class NetworkEvt<T>

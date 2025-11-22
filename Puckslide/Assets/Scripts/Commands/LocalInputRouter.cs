@@ -62,7 +62,7 @@ public class LocalInputRouter : MonoBehaviour
         if (TryGetPointerDown(out Vector3 pointerDownPos, out int pointerId))
         {
             PlayerCommand command = BuildPointerCommand(pointerDownPos, pointerId, PlayerCommandType.PointerDown);
-            m_Dispatcher.Enqueue(command);
+            SubmitCommand(command);
             m_IsPointerActive = true;
             m_ActivePointerId = pointerId;
         }
@@ -70,13 +70,13 @@ public class LocalInputRouter : MonoBehaviour
         if (m_IsPointerActive && TryGetPointerPosition(out Vector3 pointerPos))
         {
             PlayerCommand command = BuildPointerCommand(pointerPos, m_ActivePointerId, PlayerCommandType.PointerDrag);
-            m_Dispatcher.Enqueue(command);
+            SubmitCommand(command);
         }
 
         if (m_IsPointerActive && TryGetPointerUp(out Vector3 pointerUpPos))
         {
             PlayerCommand command = BuildPointerCommand(pointerUpPos, m_ActivePointerId, PlayerCommandType.PointerUp);
-            m_Dispatcher.Enqueue(command);
+            SubmitCommand(command);
             m_IsPointerActive = false;
             m_ActivePointerId = -1;
             m_ActiveInstanceId = -1;
@@ -98,6 +98,18 @@ public class LocalInputRouter : MonoBehaviour
             m_ActiveTarget,
             m_ActiveInstanceId,
             worldPos);
+    }
+
+    private void SubmitCommand(PlayerCommand command)
+    {
+        NetworkSessionManager manager = NetworkSessionManager.Instance;
+        if (manager != null)
+        {
+            manager.SubmitPlayerCommand(command);
+            return;
+        }
+
+        m_Dispatcher?.Enqueue(command);
     }
 
     private void IdentifyTarget(Vector3 worldPos)

@@ -20,6 +20,11 @@ public static class PuckControllerRouteHub
         }
     }
 
+    public static bool TryGet(int instanceId, out PuckController controller)
+    {
+        return s_Pucks.TryGetValue(instanceId, out controller);
+    }
+
     public static void Process(PlayerCommand command)
     {
         if (!s_Pucks.TryGetValue(command.TargetInstanceId, out PuckController controller))
