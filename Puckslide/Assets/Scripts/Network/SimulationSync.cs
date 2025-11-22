@@ -35,12 +35,15 @@ public class LockstepInputBuffer
         public bool Predicted;
     }
 
+    private const int k_MaxInputBytes = 4096;
+
     private readonly HashSet<int> m_Peers;
     private readonly Dictionary<uint, Dictionary<int, BufferedInput>> m_InputByTick = new Dictionary<uint, Dictionary<int, BufferedInput>>();
     private readonly SortedSet<uint> m_PredictedTicks = new SortedSet<uint>();
     private readonly Queue<uint> m_ReadyTicks = new Queue<uint>();
+    private readonly Action<string> m_Telemetry;
 
-    public LockstepInputBuffer(IEnumerable<int> peers)
+    public LockstepInputBuffer(IEnumerable<int> peers, Action<string> telemetry = null)
     {
         if (peers == null)
         {
@@ -48,6 +51,7 @@ public class LockstepInputBuffer
         }
 
         m_Peers = new HashSet<int>(peers);
+        m_Telemetry = telemetry;
     }
 
     public void BufferLocalInput(uint tick, byte[] input, int localPeerId)
@@ -72,7 +76,8 @@ public class LockstepInputBuffer
         {
             if (!m_InputByTick[tick].ContainsKey(peerId))
             {
-                BufferInput(tick, peerId, predictionGenerator(peerId), predicted: true);
+                byte[] prediction = predictionGenerator(peerId) ?? Array.Empty<byte>();
+                BufferInput(tick, peerId, prediction, predicted: true);
             }
         }
     }
@@ -108,7 +113,8 @@ public class LockstepInputBuffer
     public void Reconcile(uint tick, int peerId, byte[] authoritativeInput)
     {
         EnsureTickMap(tick);
-        m_InputByTick[tick][peerId] = new BufferedInput { Data = authoritativeInput, Predicted = false };
+        byte[] sanitized = SanitizeInput(authoritativeInput, tick, peerId);
+        m_InputByTick[tick][peerId] = new BufferedInput { Data = sanitized, Predicted = false };
         if (!m_InputByTick[tick].Values.Any(input => input.Predicted))
         {
             m_PredictedTicks.Remove(tick);
@@ -122,8 +128,9 @@ public class LockstepInputBuffer
 
     private void BufferInput(uint tick, int peerId, byte[] input, bool predicted)
     {
+        byte[] sanitized = SanitizeInput(input, tick, peerId);
         EnsureTickMap(tick);
-        m_InputByTick[tick][peerId] = new BufferedInput { Data = input, Predicted = predicted };
+        m_InputByTick[tick][peerId] = new BufferedInput { Data = sanitized, Predicted = predicted };
         if (predicted)
         {
             m_PredictedTicks.Add(tick);
@@ -143,6 +150,25 @@ public class LockstepInputBuffer
         }
     }
 
+    private byte[] SanitizeInput(byte[] input, uint tick, int peerId)
+    {
+        if (input == null)
+        {
+            m_Telemetry?.Invoke($"Input from peer {peerId} at tick {tick} was null; substituting empty payload.");
+            return Array.Empty<byte>();
+        }
+
+        if (input.Length <= k_MaxInputBytes)
+        {
+            return input;
+        }
+
+        byte[] trimmed = new byte[k_MaxInputBytes];
+        Array.Copy(input, trimmed, k_MaxInputBytes);
+        m_Telemetry?.Invoke($"Input from peer {peerId} at tick {tick} exceeded {k_MaxInputBytes} bytes and was truncated.");
+        return trimmed;
+    }
+
     private bool IsComplete(uint tick)
     {
         return m_InputByTick.TryGetValue(tick, out Dictionary<int, BufferedInput> inputs) && inputs.Count == m_Peers.Count;
@@ -152,21 +178,32 @@ public class LockstepInputBuffer
 public class RollbackManager<TState>
 {
     private readonly Func<TState, TState> m_Cloner;
+    private readonly Func<TState, bool> m_StateValidator;
+    private readonly Action<string> m_Logger;
     private readonly SortedDictionary<uint, TState> m_Checkpoints = new SortedDictionary<uint, TState>();
 
-    public RollbackManager(Func<TState, TState> cloner)
+    public RollbackManager(Func<TState, TState> cloner, Func<TState, bool> stateValidator = null, Action<string> logger = null)
     {
         m_Cloner = cloner ?? throw new ArgumentNullException(nameof(cloner));
+        m_StateValidator = stateValidator;
+        m_Logger = logger ?? Console.WriteLine;
     }
 
     public void SaveCheckpoint(uint tick, TState state)
     {
+        ValidateState(state, tick, "checkpoint save");
         m_Checkpoints[tick] = m_Cloner(state);
     }
 
     public bool TryGetCheckpoint(uint tick, out TState state)
     {
-        return m_Checkpoints.TryGetValue(tick, out state);
+        bool found = m_Checkpoints.TryGetValue(tick, out state);
+        if (found)
+        {
+            ValidateState(state, tick, "checkpoint load");
+        }
+
+        return found;
     }
 
     public IEnumerable<uint> GetCheckpointTicks()
@@ -190,18 +227,29 @@ public class RollbackManager<TState>
             m_Checkpoints.Remove(key);
         }
     }
+
+    private void ValidateState(TState state, uint tick, string context)
+    {
+        if (m_StateValidator != null && !m_StateValidator(state))
+        {
+            m_Logger?.Invoke($"State validation failed during {context} at tick {tick}.");
+            throw new InvalidOperationException($"Invalid state encountered during {context}.");
+        }
+    }
 }
 
 public class DesyncDetector<TState>
 {
     private readonly IDeterministicStateHasher<TState> m_Hasher;
     private readonly Action<string> m_Logger;
+    private readonly Action<uint, int, int> m_AnomalyReporter;
     private readonly Dictionary<uint, int> m_Hashes = new Dictionary<uint, int>();
 
-    public DesyncDetector(IDeterministicStateHasher<TState> hasher, Action<string> logger = null)
+    public DesyncDetector(IDeterministicStateHasher<TState> hasher, Action<string> logger = null, Action<uint, int, int> anomalyReporter = null)
     {
         m_Hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
         m_Logger = logger ?? Console.WriteLine;
+        m_AnomalyReporter = anomalyReporter;
     }
 
     public void Record(uint tick, TState state)
@@ -216,6 +264,7 @@ public class DesyncDetector<TState>
         if (m_Hashes.TryGetValue(tick, out int expected) && expected != hash)
         {
             m_Logger?.Invoke($"Desync detected at tick {tick}: expected hash {expected} but got {hash}.");
+            m_AnomalyReporter?.Invoke(tick, expected, hash);
         }
     }
 }
@@ -323,18 +372,26 @@ public class StateInterpolator<TState>
 public class AuthorityReconciler<TState>
 {
     private readonly Action<TState> m_ApplyAuthoritativeState;
+    private readonly Func<TState, bool> m_StateValidator;
     private readonly Action<uint> m_OnConflictResolved;
     private readonly Action<string> m_Logger;
 
-    public AuthorityReconciler(Action<TState> applyAuthoritativeState, Action<uint> onConflictResolved = null, Action<string> logger = null)
+    public AuthorityReconciler(Action<TState> applyAuthoritativeState, Action<uint> onConflictResolved = null, Action<string> logger = null, Func<TState, bool> stateValidator = null)
     {
         m_ApplyAuthoritativeState = applyAuthoritativeState ?? throw new ArgumentNullException(nameof(applyAuthoritativeState));
         m_OnConflictResolved = onConflictResolved;
         m_Logger = logger ?? Console.WriteLine;
+        m_StateValidator = stateValidator;
     }
 
     public void Resolve(uint tick, TState authoritativeState)
     {
+        if (m_StateValidator != null && !m_StateValidator(authoritativeState))
+        {
+            m_Logger?.Invoke($"Rejected authoritative state at tick {tick} due to validation failure.");
+            return;
+        }
+
         m_ApplyAuthoritativeState(authoritativeState);
         m_OnConflictResolved?.Invoke(tick);
         m_Logger?.Invoke($"State-sync reconciliation applied at tick {tick}.");

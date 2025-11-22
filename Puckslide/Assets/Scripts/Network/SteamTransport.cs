@@ -15,6 +15,7 @@ public class SteamTransport : NetTransport, IDisposable
     private readonly Dictionary<int, SteamNetworkingIdentity> m_PeerIdentities = new Dictionary<int, SteamNetworkingIdentity>();
 
     private Callback<SteamNetConnectionStatusChangedCallback_t> m_ConnectionStatusChanged;
+    private Callback<GSPolicyResponse_t> m_PolicyResponse;
 
     private HSteamListenSocket m_ListenSocket = HSteamListenSocket.Invalid;
     private HSteamNetPollGroup m_PollGroup = HSteamNetPollGroup.Invalid;
@@ -22,6 +23,7 @@ public class SteamTransport : NetTransport, IDisposable
     private bool m_Disposed;
     private int m_NextPeerId = 1;
     private bool m_HasRelay;
+    private bool m_LastVacSecure = true;
 
     public static bool IsPlatformSupported => SteamAPI.IsSteamRunning();
 #else
@@ -66,6 +68,9 @@ public class SteamTransport : NetTransport, IDisposable
         }
     }
 
+    public event Action<bool> OnVacStatusChanged;
+    public event Action<string> OnTransportAnomaly;
+
 #if STEAMWORKSNET
     public SteamTransport()
     {
@@ -77,6 +82,7 @@ public class SteamTransport : NetTransport, IDisposable
         SteamNetworkingUtils.InitRelayNetworkAccess();
         m_HasRelay = SteamNetworkingUtils.GetRelayNetworkStatus(out _) == ESteamNetworkingAvailability.k_ESteamNetworkingAvailability_Current;
         m_ConnectionStatusChanged = Callback<SteamNetConnectionStatusChangedCallback_t>.Create(OnConnectionStatusChanged);
+        m_PolicyResponse = Callback<GSPolicyResponse_t>.Create(HandlePolicyResponse);
     }
 
     public void Dispose()
@@ -116,6 +122,8 @@ public class SteamTransport : NetTransport, IDisposable
         EnsureNotDisposed();
         EnsureRelayReady();
 
+        port = ClampPort(port);
+
         var listenOptions = BuildRelayConfig();
         m_ListenSocket = SteamNetworkingSockets.CreateListenSocketP2P(0, (int)listenOptions.Length, listenOptions);
         m_PollGroup = SteamNetworkingSockets.CreatePollGroup();
@@ -129,6 +137,8 @@ public class SteamTransport : NetTransport, IDisposable
     {
         EnsureNotDisposed();
         EnsureRelayReady();
+
+        port = ClampPort(port);
 
         if (string.IsNullOrWhiteSpace(address))
         {
@@ -156,6 +166,7 @@ public class SteamTransport : NetTransport, IDisposable
 
     public bool TryReconnect(string address, int port, int peerId)
     {
+        port = ClampPort(port);
         if (!m_PeerIdentities.TryGetValue(peerId, out SteamNetworkingIdentity identity))
         {
             return false;
@@ -289,6 +300,21 @@ public class SteamTransport : NetTransport, IDisposable
         }
     }
 
+    private void HandlePolicyResponse(GSPolicyResponse_t data)
+    {
+        bool isSecure = data.m_bSecure == 1;
+        if (isSecure != m_LastVacSecure)
+        {
+            m_LastVacSecure = isSecure;
+            OnVacStatusChanged?.Invoke(isSecure);
+        }
+
+        if (!isSecure)
+        {
+            ReportAnomaly("Steam VAC policy reported insecure connection state.");
+        }
+    }
+
     private SteamNetworkingConfigValue_t[] BuildRelayConfig()
     {
         return new SteamNetworkingConfigValue_t[]
@@ -321,6 +347,28 @@ public class SteamTransport : NetTransport, IDisposable
             throw new ObjectDisposedException(nameof(SteamTransport));
         }
     }
+
+    private void ReportAnomaly(string message)
+    {
+        OnTransportAnomaly?.Invoke(message);
+    }
+
+    private int ClampPort(int port)
+    {
+        if (port < 0)
+        {
+            ReportAnomaly($"Received negative port {port}; clamping to 0.");
+            return 0;
+        }
+
+        if (port > ushort.MaxValue)
+        {
+            ReportAnomaly($"Received oversized port {port}; clamping to {ushort.MaxValue}.");
+            return ushort.MaxValue;
+        }
+
+        return port;
+    }
 #else
     public void Dispose()
     {
@@ -328,16 +376,19 @@ public class SteamTransport : NetTransport, IDisposable
 
     public void Host(int port)
     {
+        port = ClampPort(port);
         m_Fallback.Host(port);
     }
 
     public void Connect(string address, int port)
     {
+        port = ClampPort(port);
         m_Fallback.Connect(address, port);
     }
 
     public bool TryReconnect(string address, int port, int peerId)
     {
+        port = ClampPort(port);
         return m_Fallback.TryReconnect(address, port, peerId);
     }
 
@@ -354,6 +405,15 @@ public class SteamTransport : NetTransport, IDisposable
     public bool TryReceive(out NetReceivedMessage message)
     {
         return m_Fallback.TryReceive(out message);
+    }
+
+    private void ReportAnomaly(string message)
+    {
+    }
+
+    private int ClampPort(int port)
+    {
+        return port < 0 ? 0 : Math.Min(port, ushort.MaxValue);
     }
 #endif
 }

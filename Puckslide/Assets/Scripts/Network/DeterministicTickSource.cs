@@ -23,11 +23,12 @@ public class ManualTimeProvider : ITimeProvider
 public class DeterministicTickSource
 {
     private readonly ITimeProvider m_TimeProvider;
+    private readonly uint m_MaxTickCatchUp;
 
     public double TickDurationSeconds { get; }
     public uint CurrentTick { get; private set; }
 
-    public DeterministicTickSource(double tickRate, ITimeProvider timeProvider)
+    public DeterministicTickSource(double tickRate, ITimeProvider timeProvider, uint maxTickCatchUp = 64)
     {
         if (tickRate <= 0)
         {
@@ -35,6 +36,7 @@ public class DeterministicTickSource
         }
 
         m_TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        m_MaxTickCatchUp = maxTickCatchUp == 0 ? 1u : maxTickCatchUp;
         TickDurationSeconds = 1.0 / tickRate;
         CurrentTick = 0;
     }
@@ -42,6 +44,18 @@ public class DeterministicTickSource
     public bool Update()
     {
         uint tickForTime = GetTickForTime(m_TimeProvider.CurrentTimeSeconds);
+
+        if (tickForTime > CurrentTick + m_MaxTickCatchUp)
+        {
+            tickForTime = CurrentTick + m_MaxTickCatchUp;
+        }
+
+        if (tickForTime < CurrentTick)
+        {
+            // Reject time regressions to keep the tick path deterministic.
+            return false;
+        }
+
         if (tickForTime > CurrentTick)
         {
             CurrentTick = tickForTime;
@@ -53,12 +67,20 @@ public class DeterministicTickSource
 
     public uint GetTickForTime(double timeSeconds)
     {
-        if (timeSeconds < 0)
+        if (double.IsNaN(timeSeconds) || double.IsInfinity(timeSeconds))
         {
-            return 0;
+            return CurrentTick;
         }
 
-        return (uint)Math.Floor(timeSeconds / TickDurationSeconds);
+        double clampedTime = Math.Max(0, timeSeconds);
+        double ticks = Math.Floor(clampedTime / TickDurationSeconds);
+
+        if (ticks >= uint.MaxValue)
+        {
+            return uint.MaxValue;
+        }
+
+        return (uint)ticks;
     }
 }
 
