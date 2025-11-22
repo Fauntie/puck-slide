@@ -42,8 +42,9 @@ public class LockstepInputBuffer
     private readonly SortedSet<uint> m_PredictedTicks = new SortedSet<uint>();
     private readonly Queue<uint> m_ReadyTicks = new Queue<uint>();
     private readonly Action<string> m_Telemetry;
+    private readonly NetworkDiagnostics m_Diagnostics;
 
-    public LockstepInputBuffer(IEnumerable<int> peers, Action<string> telemetry = null)
+    public LockstepInputBuffer(IEnumerable<int> peers, Action<string> telemetry = null, NetworkDiagnostics diagnostics = null)
     {
         if (peers == null)
         {
@@ -52,6 +53,7 @@ public class LockstepInputBuffer
 
         m_Peers = new HashSet<int>(peers);
         m_Telemetry = telemetry;
+        m_Diagnostics = diagnostics;
     }
 
     public void BufferLocalInput(uint tick, byte[] input, int localPeerId)
@@ -78,6 +80,7 @@ public class LockstepInputBuffer
             {
                 byte[] prediction = predictionGenerator(peerId) ?? Array.Empty<byte>();
                 BufferInput(tick, peerId, prediction, predicted: true);
+                m_Diagnostics?.RecordPacketLoss(tick, peerId);
             }
         }
     }
@@ -180,13 +183,15 @@ public class RollbackManager<TState>
     private readonly Func<TState, TState> m_Cloner;
     private readonly Func<TState, bool> m_StateValidator;
     private readonly Action<string> m_Logger;
+    private readonly NetworkDiagnostics m_Diagnostics;
     private readonly SortedDictionary<uint, TState> m_Checkpoints = new SortedDictionary<uint, TState>();
 
-    public RollbackManager(Func<TState, TState> cloner, Func<TState, bool> stateValidator = null, Action<string> logger = null)
+    public RollbackManager(Func<TState, TState> cloner, Func<TState, bool> stateValidator = null, Action<string> logger = null, NetworkDiagnostics diagnostics = null)
     {
         m_Cloner = cloner ?? throw new ArgumentNullException(nameof(cloner));
         m_StateValidator = stateValidator;
         m_Logger = logger ?? Console.WriteLine;
+        m_Diagnostics = diagnostics;
     }
 
     public void SaveCheckpoint(uint tick, TState state)
@@ -201,6 +206,7 @@ public class RollbackManager<TState>
         if (found)
         {
             ValidateState(state, tick, "checkpoint load");
+            m_Diagnostics?.RecordRollback(tick);
         }
 
         return found;
@@ -244,12 +250,14 @@ public class DesyncDetector<TState>
     private readonly Action<string> m_Logger;
     private readonly Action<uint, int, int> m_AnomalyReporter;
     private readonly Dictionary<uint, int> m_Hashes = new Dictionary<uint, int>();
+    private readonly NetworkDiagnostics m_Diagnostics;
 
-    public DesyncDetector(IDeterministicStateHasher<TState> hasher, Action<string> logger = null, Action<uint, int, int> anomalyReporter = null)
+    public DesyncDetector(IDeterministicStateHasher<TState> hasher, Action<string> logger = null, Action<uint, int, int> anomalyReporter = null, NetworkDiagnostics diagnostics = null)
     {
         m_Hasher = hasher ?? throw new ArgumentNullException(nameof(hasher));
         m_Logger = logger ?? Console.WriteLine;
         m_AnomalyReporter = anomalyReporter;
+        m_Diagnostics = diagnostics;
     }
 
     public void Record(uint tick, TState state)
@@ -265,6 +273,15 @@ public class DesyncDetector<TState>
         {
             m_Logger?.Invoke($"Desync detected at tick {tick}: expected hash {expected} but got {hash}.");
             m_AnomalyReporter?.Invoke(tick, expected, hash);
+            m_Diagnostics?.LogEvent(
+                "desync",
+                "Deterministic hash mismatch.",
+                new Dictionary<string, string>
+                {
+                    {"tick", tick.ToString()},
+                    {"expectedHash", expected.ToString()},
+                    {"actualHash", hash.ToString()}
+                });
         }
     }
 }

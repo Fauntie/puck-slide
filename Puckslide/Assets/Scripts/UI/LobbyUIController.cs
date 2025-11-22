@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 #if STEAMWORKSNET
@@ -23,6 +24,10 @@ public class LobbyUIController : MonoBehaviour
     private GameObject m_UpdatePromptPanel;
     [SerializeField]
     private Text m_UpdatePromptText;
+    [SerializeField]
+    private Toggle m_EnableTelemetryToggle;
+    [SerializeField]
+    private Toggle m_EnableCrashReportsToggle;
 
     private LobbyStateMachine m_Lobby;
     private ManualTimeProvider m_TimeProvider;
@@ -33,9 +38,28 @@ public class LobbyUIController : MonoBehaviour
     private SteamMatchmakingQuickplay m_Quickplay;
     private bool m_QuickplayInProgress;
     private string m_StatusOverride = string.Empty;
+    private NetworkDiagnostics m_Diagnostics;
 
     private void Awake()
     {
+        m_Diagnostics = new NetworkDiagnostics
+        {
+            MetricsOptIn = m_EnableTelemetryToggle != null && m_EnableTelemetryToggle.isOn,
+            StructuredLogger = LogStructuredNetworkEvent
+        };
+
+        CrashReportingService.Initialize(m_Diagnostics, m_EnableCrashReportsToggle != null && m_EnableCrashReportsToggle.isOn);
+
+        if (m_EnableTelemetryToggle != null)
+        {
+            m_EnableTelemetryToggle.onValueChanged.AddListener(OnTelemetryToggled);
+        }
+
+        if (m_EnableCrashReportsToggle != null)
+        {
+            m_EnableCrashReportsToggle.onValueChanged.AddListener(CrashReportingService.SetEnabled);
+        }
+
         m_TimeProvider = new ManualTimeProvider();
         m_Transport = SteamTransport.IsPlatformSupported ? (NetTransport)new SteamTransport() : new LoopbackTransport();
         m_UsingSteam = m_Transport is SteamTransport;
@@ -45,7 +69,8 @@ public class LobbyUIController : MonoBehaviour
             m_TimeProvider,
             () => $"{m_Lobby.State}:{m_Lobby.PlayerName}:{m_Lobby.SessionCode}",
             ResilientSessionSerializer.SerializeText,
-            ResilientSessionSerializer.DeserializeText);
+            ResilientSessionSerializer.DeserializeText,
+            diagnostics: m_Diagnostics);
         m_SessionManager.OnStatusChanged += OnSessionStatusChanged;
 
         if (m_VersionLabel != null)
@@ -111,6 +136,7 @@ public class LobbyUIController : MonoBehaviour
         ClearStatusOverride();
         m_Lobby.Host(m_PlayerNameInput.text, sessionCode);
         BeginResilientTracking();
+        RegisterPrivacyTerms();
         UpdateStatus();
     }
 
@@ -119,6 +145,7 @@ public class LobbyUIController : MonoBehaviour
         ClearStatusOverride();
         m_Lobby.Join(m_PlayerNameInput.text, m_SessionCodeInput.text);
         BeginResilientTracking();
+        RegisterPrivacyTerms();
         UpdateStatus();
     }
 
@@ -195,6 +222,30 @@ public class LobbyUIController : MonoBehaviour
     private void OnSessionStatusChanged(ResilientSessionStatus status, string message)
     {
         UpdateStatus();
+    }
+
+    private void OnTelemetryToggled(bool enabled)
+    {
+        if (m_Diagnostics != null)
+        {
+            m_Diagnostics.MetricsOptIn = enabled;
+            m_Diagnostics.LogEvent("telemetry", enabled ? "Metrics enabled by player." : "Metrics disabled by player.");
+        }
+    }
+
+    private void LogStructuredNetworkEvent(NetworkLogEvent logEvent)
+    {
+        string context = logEvent.Context == null || !logEvent.Context.Any()
+            ? string.Empty
+            : string.Join(", ", logEvent.Context.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+
+        Debug.Log($"[net][{logEvent.EventType}] {logEvent.Message} {context}");
+    }
+
+    private void RegisterPrivacyTerms()
+    {
+        CrashReportingService.AddRedactionTerm(m_PlayerNameInput != null ? m_PlayerNameInput.text : string.Empty);
+        CrashReportingService.AddRedactionTerm(m_SessionCodeInput != null ? m_SessionCodeInput.text : string.Empty);
     }
 
 #if STEAMWORKSNET

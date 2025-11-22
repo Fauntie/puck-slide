@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 
 public enum ResilientSessionStatus
@@ -22,6 +23,7 @@ public class ResilientSessionManager<TState>
     private readonly double m_ReconnectGraceSeconds;
     private readonly double m_RetryIntervalSeconds;
     private readonly int m_MaxRetries;
+    private readonly NetworkDiagnostics m_Diagnostics;
 
     private double m_LastHeartbeatTime;
     private double m_LastRetryTime;
@@ -46,7 +48,8 @@ public class ResilientSessionManager<TState>
         double hiccupTimeoutSeconds = 2.0,
         double reconnectGraceSeconds = 5.0,
         double retryIntervalSeconds = 0.5,
-        int maxRetries = 5)
+        int maxRetries = 5,
+        NetworkDiagnostics diagnostics = null)
     {
         m_Transport = transport ?? throw new ArgumentNullException(nameof(transport));
         m_TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
@@ -57,6 +60,7 @@ public class ResilientSessionManager<TState>
         m_ReconnectGraceSeconds = reconnectGraceSeconds;
         m_RetryIntervalSeconds = retryIntervalSeconds;
         m_MaxRetries = maxRetries;
+        m_Diagnostics = diagnostics;
     }
 
     public void Start(string address, int port, int peerId)
@@ -66,6 +70,15 @@ public class ResilientSessionManager<TState>
         m_PeerId = peerId;
         m_LastHeartbeatTime = m_TimeProvider.CurrentTimeSeconds;
         SetStatus(ResilientSessionStatus.Connecting, "Attempting connection...");
+        m_Diagnostics?.LogEvent(
+            "network_session",
+            "Session start requested.",
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                {"address", m_Address},
+                {"port", m_Port.ToString()},
+                {"peerId", m_PeerId.ToString()}
+            });
     }
 
     public void ConfirmConnected()
@@ -73,6 +86,7 @@ public class ResilientSessionManager<TState>
         m_LastHeartbeatTime = m_TimeProvider.CurrentTimeSeconds;
         m_RetryCount = 0;
         SetStatus(ResilientSessionStatus.Connected, "Link stable.");
+        m_Diagnostics?.LogEvent("network_session", "Connection confirmed.");
     }
 
     public void RecordHeartbeat()
@@ -162,6 +176,14 @@ public class ResilientSessionManager<TState>
     public void HandlePeerDrop()
     {
         EnterReconnection("Peer dropped; waiting for grace window to rejoin.");
+        m_Diagnostics?.LogEvent(
+            "disconnect",
+            "Peer disconnected; entering grace window.",
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                {"peerId", m_PeerId.ToString()},
+                {"address", m_Address}
+            });
     }
 
     private void EnterReconnection(string message)
@@ -169,6 +191,14 @@ public class ResilientSessionManager<TState>
         m_RetryCount = 0;
         m_LastRetryTime = m_TimeProvider.CurrentTimeSeconds;
         SetStatus(ResilientSessionStatus.Reconnecting, message);
+        m_Diagnostics?.LogEvent(
+            "network_session",
+            message,
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                {"peerId", m_PeerId.ToString()},
+                {"retryCount", m_RetryCount.ToString()}
+            });
     }
 
     private void SetStatus(ResilientSessionStatus status, string message)
@@ -176,6 +206,14 @@ public class ResilientSessionManager<TState>
         Status = status;
         m_StatusMessage = message ?? string.Empty;
         OnStatusChanged?.Invoke(Status, m_StatusMessage);
+        m_Diagnostics?.LogEvent(
+            "network_status",
+            m_StatusMessage,
+            new System.Collections.Generic.Dictionary<string, string>
+            {
+                {"status", Status.ToString()},
+                {"peerId", m_PeerId.ToString()}
+            });
     }
 }
 
