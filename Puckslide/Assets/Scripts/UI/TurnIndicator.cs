@@ -1,3 +1,4 @@
+using Puckslide.Networking;
 using TMPro;
 using UnityEngine;
 
@@ -37,15 +38,15 @@ public class TurnIndicator : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        NetworkEvents.OnTurnChanged.AddListener(OnTurnChanged, true);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChanged);
     }
 
-    private void OnTurnChanged(bool isWhiteTurn)
+    private void OnTurnChanged(TurnChangeMessage message)
     {
         if (m_Text == null)
         {
@@ -58,6 +59,6 @@ public class TurnIndicator : MonoBehaviour
             return;
         }
 
-        m_Text.text = isWhiteTurn ? "White's turn" : "Black's turn";
+        m_Text.text = message.IsWhiteTurn ? "White's turn" : "Black's turn";
     }
 }

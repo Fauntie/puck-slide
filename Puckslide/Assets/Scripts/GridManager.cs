@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Puckslide.Networking;
 using UnityEngine;
 
 public class GridManager : MonoBehaviour
@@ -81,7 +82,7 @@ public class GridManager : MonoBehaviour
             m_Phase2Canvas.SetActive(true);
         }
 
-        EventsManager.OnTurnChanged.Invoke(PuckController.IsWhiteTurn);
+        PuckController.AnnounceTurnState("phase-transition");
 
         m_IsTransitioningToPhase2 = false;
     }
@@ -113,7 +114,7 @@ public class GridManager : MonoBehaviour
             }
         }
 
-        EventsManager.OnBoardLayout.Invoke(m_PieceLayout);
+        NetworkEvents.OnBoardLayout.Invoke(m_PieceLayout);
     }
 
     public Dictionary<Vector2Int, ChessPiece> GetLayoutCopy()

@@ -1,4 +1,5 @@
 using System.Collections;
+using Puckslide.Networking;
 using TMPro;
 using UnityEngine;
 
@@ -41,16 +42,16 @@ public class TurnBannerHUD : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
-        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
+        NetworkEvents.OnTurnChanged.AddListener(OnTurnChanged, true);
+        NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
         UpdateLabels(PuckController.IsWhiteTurn);
         ApplyMutedState();
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
-        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
+        NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChanged);
+        NetworkEvents.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
         if (m_AnimationRoutine != null)
         {
             StopCoroutine(m_AnimationRoutine);
@@ -58,14 +59,14 @@ public class TurnBannerHUD : MonoBehaviour
         }
     }
 
-    private void OnTurnChanged(bool isWhiteTurn)
+    private void OnTurnChanged(TurnChangeMessage message)
     {
-        UpdateLabels(isWhiteTurn);
+        UpdateLabels(message.IsWhiteTurn);
         ApplyMutedState();
         StartAnimationIfNeeded();
     }
 
-    private void OnLobbySnapshot(LobbySnapshot _)
+    private void OnLobbySnapshot(NetworkLobbySnapshot _)
     {
         ApplyMutedState();
     }

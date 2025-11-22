@@ -1,3 +1,4 @@
+using Puckslide.Networking;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -31,14 +32,14 @@ public class LocalInputRouter : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
-        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
+        NetworkEvents.OnTurnChanged.AddListener(OnTurnChanged, true);
+        NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
-        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
+        NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChanged);
+        NetworkEvents.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
     }
 
     private void Update()
@@ -190,12 +191,12 @@ public class LocalInputRouter : MonoBehaviour
         return false;
     }
 
-    private void OnTurnChanged(bool isWhiteTurn)
+    private void OnTurnChanged(TurnChangeMessage message)
     {
-        m_InputLocked = isWhiteTurn != LobbyState.LocalIsWhitePlayer;
+        m_InputLocked = message.IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
     }
 
-    private void OnLobbySnapshot(LobbySnapshot _)
+    private void OnLobbySnapshot(NetworkLobbySnapshot _)
     {
         m_InputLocked = PuckController.IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using Puckslide.Networking;
 using UnityEngine;
 
 public class PuckController : MonoBehaviour
@@ -50,6 +51,7 @@ public class PuckController : MonoBehaviour
     [SerializeField]
     private float m_MaxLineWidth = 0.3f;
     private static bool s_IsWhiteTurn = true;
+    private static uint s_TurnNumber;
     private static PuckController s_ActivePuck;
     private bool m_IsSelected;
 
@@ -187,17 +189,17 @@ public class PuckController : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnDeletePucks.AddListener(OnDelete);
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
-        EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
+        NetworkEvents.OnDeletePucks.AddListener(OnDelete);
+        NetworkEvents.OnTurnChanged.AddListener(OnTurnChanged, true);
+        NetworkSessionManager.Instance?.BroadcastPuckSpawn(this, "spawned");
         PuckControllerRouteHub.Register(this);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnDeletePucks.RemoveListener(OnDelete);
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
-        EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
+        NetworkEvents.OnDeletePucks.RemoveListener(OnDelete);
+        NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChanged);
+        NetworkSessionManager.Instance?.BroadcastPuckDespawn(m_Rigidbody, "destroyed");
         PuckControllerRouteHub.Unregister(this);
         if (s_ActivePuck == this)
         {
@@ -205,8 +207,10 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    private void OnTurnChanged(bool _)
+    private void OnTurnChanged(TurnChangeMessage message)
     {
+        s_IsWhiteTurn = message.IsWhiteTurn;
+        s_TurnNumber = message.TurnNumber;
         UpdateBoardEntryLines();
     }
 
@@ -482,7 +486,8 @@ public class PuckController : MonoBehaviour
         {
             s_ActivePuck = null;
             s_IsWhiteTurn = !s_IsWhiteTurn;
-            EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+            s_TurnNumber++;
+            BroadcastTurnChange("puck-stopped");
         }
         else
         {
@@ -566,11 +571,38 @@ public class PuckController : MonoBehaviour
     public float AngularVelocity => m_Rigidbody != null ? m_Rigidbody.angularVelocity : 0f;
 
     public static bool IsWhiteTurn => s_IsWhiteTurn;
+    public static uint TurnNumber => s_TurnNumber;
+
+    public Rigidbody2D Rigidbody => m_Rigidbody;
 
     public static void ResetTurnOrder()
     {
         s_IsWhiteTurn = true; // Start with white's turn
-        EventsManager.OnTurnChanged.Invoke(s_IsWhiteTurn);
+        s_TurnNumber = 0;
+        BroadcastTurnChange("reset");
+    }
+
+    public static void AnnounceTurnState(string reason)
+    {
+        BroadcastTurnChange(reason);
+    }
+
+    private static void BroadcastTurnChange(string reason)
+    {
+        if (NetworkSessionManager.Instance != null)
+        {
+            NetworkSessionManager.Instance.BroadcastTurnChange(s_IsWhiteTurn, s_TurnNumber, reason);
+            return;
+        }
+
+        NetworkEvents.OnTurnChanged.Invoke(new TurnChangeMessage
+        {
+            LobbyId = string.Empty,
+            IsWhiteTurn = s_IsWhiteTurn,
+            TurnNumber = s_TurnNumber,
+            Reason = reason,
+            ServerTime = Time.unscaledTimeAsDouble
+        });
     }
 
     public void UpdateGridPosition(float tileSize, Vector2 gridOrigin)

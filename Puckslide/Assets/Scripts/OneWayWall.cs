@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Puckslide.Networking;
 using UnityEngine;
 
 public class OneWayWall : MonoBehaviour
@@ -12,14 +13,14 @@ public class OneWayWall : MonoBehaviour
 
     private void OnEnable()
     {
-        EventsManager.OnPuckSpawned.AddListener(RegisterPuck);
-        EventsManager.OnPuckDespawned.AddListener(UnregisterPuck);
+        NetworkEvents.OnPuckSpawned.AddListener(RegisterPuck);
+        NetworkEvents.OnPuckDespawned.AddListener(UnregisterPuck);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnPuckSpawned.RemoveListener(RegisterPuck);
-        EventsManager.OnPuckDespawned.RemoveListener(UnregisterPuck);
+        NetworkEvents.OnPuckSpawned.RemoveListener(RegisterPuck);
+        NetworkEvents.OnPuckDespawned.RemoveListener(UnregisterPuck);
         m_Pucks.Clear();
     }
 

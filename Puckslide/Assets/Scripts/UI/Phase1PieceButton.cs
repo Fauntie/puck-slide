@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Puckslide.Networking;
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
@@ -30,13 +31,13 @@ public class Phase1PieceButton : MonoBehaviour
     
     private void OnEnable()
     {
-        EventsManager.OnPieceSetupData.AddListener(OnPieceSetup, true);
+        NetworkEvents.OnPieceSetupData.AddListener(OnPieceSetup, true);
         m_Button.onClick.AddListener(OnButtonPress);
     }
-    
+
     private void OnDisable()
     {
-        EventsManager.OnPieceSetupData.RemoveListener(OnPieceSetup);
+        NetworkEvents.OnPieceSetupData.RemoveListener(OnPieceSetup);
         m_Button.onClick.RemoveListener(OnButtonPress);
         m_PieceCount = 0;
         m_PieceCountText.text = "X 0";
@@ -63,13 +64,14 @@ public class Phase1PieceButton : MonoBehaviour
         m_PieceCountText.text = $"X {m_PieceCount}";
     }
     
-    private void OnPieceSetup(PieceSetupData[] pieceSetupData)
+    private void OnPieceSetup(PieceSetupMessage message)
     {
-        if (pieceSetupData == null)
+        if (message == null || message.Setup == null)
         {
             return;
         }
-        
+
+        PieceSetupData[] pieceSetupData = message.Setup;
         for (int i = 0; i < pieceSetupData.Length; i++)
         {
             if (pieceSetupData[i].Type == m_ChessPieceType)

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Puckslide.Networking;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -63,14 +64,14 @@ public class GameSetupManager : MonoBehaviour
     private void OnEnable()
     {
         LobbyState.SetLocalHost(m_IsLocalHost);
-        EventsManager.OnDeletePucks.Invoke(true);
+        NetworkEvents.OnDeletePucks.Invoke(true);
         PuckController.ResetTurnOrder();
 
-        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshotReceived, true);
+        NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshotReceived, true);
 
         m_PieceSetup = LobbySnapshot.ClonePieceSetup(m_PieceSetup);
 
-        if (LobbyState.LatestSnapshot == null)
+        if (LobbyState.LatestLobbySnapshot == null)
         {
             m_PieceSetup = new PieceSetupData[]
             {
@@ -93,7 +94,7 @@ public class GameSetupManager : MonoBehaviour
 
     private void OnDisable()
     {
-        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshotReceived);
+        NetworkEvents.OnLobbySnapshot.RemoveListener(OnLobbySnapshotReceived);
     }
 
     public void StartButton()
@@ -103,10 +104,7 @@ public class GameSetupManager : MonoBehaviour
             return;
         }
 
-        LobbySnapshot snapshot = LobbySnapshot.Create(m_PieceSetup, m_HostIsWhite);
-        LobbyState.ApplySnapshot(snapshot);
-
-        EventsManager.OnPieceSetupData.Invoke(m_PieceSetup);
+        NetworkSessionManager.Instance?.BroadcastPieceSetup(m_PieceSetup, m_HostIsWhite);
         m_Phase1Canvas.SetActive(true);
         Phase1Environment.SetActive(true);
         gameObject.SetActive(false);
@@ -251,15 +249,15 @@ public class GameSetupManager : MonoBehaviour
         return GetTotalCount(false) < MAX_PIECES_PER_COLOR;
     }
 
-    private void OnLobbySnapshotReceived(LobbySnapshot snapshot)
+    private void OnLobbySnapshotReceived(NetworkLobbySnapshot snapshot)
     {
         if (snapshot == null)
         {
             return;
         }
 
-        m_PieceSetup = LobbySnapshot.ClonePieceSetup(snapshot.PieceSetup);
-        m_HostIsWhite = snapshot.HostIsWhite;
+        m_PieceSetup = LobbySnapshot.ClonePieceSetup(snapshot.Snapshot.PieceSetup);
+        m_HostIsWhite = snapshot.Snapshot.HostIsWhite;
         if (m_ColorToggle != null)
         {
             m_ColorToggle.isOn = m_HostIsWhite;
