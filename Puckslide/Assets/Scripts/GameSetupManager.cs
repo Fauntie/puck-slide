@@ -29,6 +29,15 @@ public class GameSetupManager : MonoBehaviour
     private const int MAX_PIECES_PER_COLOR = 16;
 
     public event Action CountsChanged;
+
+    [SerializeField]
+    private bool m_IsLocalHost = true;
+
+    [SerializeField]
+    private bool m_HostIsWhite = true;
+
+    [SerializeField]
+    private Toggle m_ColorToggle;
     
     [SerializeField]
     private PieceSetupData[] m_PieceSetup = new PieceSetupData[]
@@ -45,26 +54,58 @@ public class GameSetupManager : MonoBehaviour
     private GameObject m_Phase1Canvas;
     [SerializeField]
     private GameObject Phase1Environment;
-    
+
+    public bool IsLocalHost => m_IsLocalHost;
+
+    public bool HostIsWhite => m_HostIsWhite;
+
 
     private void OnEnable()
     {
+        LobbyState.SetLocalHost(m_IsLocalHost);
         EventsManager.OnDeletePucks.Invoke(true);
         PuckController.ResetTurnOrder();
 
-        m_PieceSetup = new PieceSetupData[]
+        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshotReceived, true);
+
+        m_PieceSetup = LobbySnapshot.ClonePieceSetup(m_PieceSetup);
+
+        if (LobbyState.LatestSnapshot == null)
         {
-            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-        };
+            m_PieceSetup = new PieceSetupData[]
+            {
+                new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
+                new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
+                new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
+                new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
+                new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
+                new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
+            };
+        }
+
+        if (m_ColorToggle != null)
+        {
+            m_ColorToggle.isOn = m_HostIsWhite;
+            m_ColorToggle.interactable = m_IsLocalHost;
+        }
+        NotifyCountsChanged();
+    }
+
+    private void OnDisable()
+    {
+        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshotReceived);
     }
 
     public void StartButton()
     {
+        if (!m_IsLocalHost)
+        {
+            return;
+        }
+
+        LobbySnapshot snapshot = LobbySnapshot.Create(m_PieceSetup, m_HostIsWhite);
+        LobbyState.ApplySnapshot(snapshot);
+
         EventsManager.OnPieceSetupData.Invoke(m_PieceSetup);
         m_Phase1Canvas.SetActive(true);
         Phase1Environment.SetActive(true);
@@ -74,6 +115,11 @@ public class GameSetupManager : MonoBehaviour
 
     public bool IncreaseCount(ChessPieceType pieceType, bool isWhite)
     {
+        if (!m_IsLocalHost)
+        {
+            return false;
+        }
+
         PieceSetupData setupData = FindPieceSetupData(pieceType);
         if (setupData == null)
         {
@@ -103,6 +149,11 @@ public class GameSetupManager : MonoBehaviour
 
     public bool DecreaseCount(ChessPieceType pieceType, bool isWhite)
     {
+        if (!m_IsLocalHost)
+        {
+            return false;
+        }
+
         PieceSetupData setupData = FindPieceSetupData(pieceType);
         if (setupData == null)
         {
@@ -132,6 +183,11 @@ public class GameSetupManager : MonoBehaviour
 
     public void ToggleSticky(ChessPieceType pieceType, bool isSticky)
     {
+        if (!m_IsLocalHost)
+        {
+            return;
+        }
+
         for (int i = 0; i < m_PieceSetup.Length; i++)
         {
             if (m_PieceSetup[i].Type == pieceType)
@@ -170,6 +226,20 @@ public class GameSetupManager : MonoBehaviour
         return false;
     }
 
+    public void ToggleHostColor(bool wantsWhite)
+    {
+        if (!m_IsLocalHost)
+        {
+            return;
+        }
+
+        m_HostIsWhite = wantsWhite;
+        if (m_ColorToggle != null)
+        {
+            m_ColorToggle.isOn = m_HostIsWhite;
+        }
+    }
+
 
     public bool WithinWhiteCount()
     {
@@ -179,6 +249,24 @@ public class GameSetupManager : MonoBehaviour
     public bool WithinBlackCount()
     {
         return GetTotalCount(false) < MAX_PIECES_PER_COLOR;
+    }
+
+    private void OnLobbySnapshotReceived(LobbySnapshot snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        m_PieceSetup = LobbySnapshot.ClonePieceSetup(snapshot.PieceSetup);
+        m_HostIsWhite = snapshot.HostIsWhite;
+        if (m_ColorToggle != null)
+        {
+            m_ColorToggle.isOn = m_HostIsWhite;
+            m_ColorToggle.interactable = m_IsLocalHost;
+        }
+
+        NotifyCountsChanged();
     }
 
     public bool CanIncrease(ChessPieceType pieceType, bool isWhite)

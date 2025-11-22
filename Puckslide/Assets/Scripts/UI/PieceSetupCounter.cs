@@ -63,7 +63,8 @@ public class PieceSetupCounter : MonoBehaviour
     {
         m_CurrentCount = m_GameSetupManager.GetCount(m_ChessPieceType, m_IsWhiteCounter);
         m_TextMeshProUGUI.text = $"{m_CurrentCount}";
-        m_MinusButton.interactable = m_GameSetupManager.CanDecrease(m_ChessPieceType, m_IsWhiteCounter);
-        m_PlusButton.interactable = m_GameSetupManager.CanIncrease(m_ChessPieceType, m_IsWhiteCounter);
+        bool canEdit = m_GameSetupManager != null && m_GameSetupManager.IsLocalHost;
+        m_MinusButton.interactable = canEdit && m_GameSetupManager.CanDecrease(m_ChessPieceType, m_IsWhiteCounter);
+        m_PlusButton.interactable = canEdit && m_GameSetupManager.CanIncrease(m_ChessPieceType, m_IsWhiteCounter);
     }
 }

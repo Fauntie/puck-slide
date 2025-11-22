@@ -8,15 +8,6 @@ public class TurnBannerHUD : MonoBehaviour
     private TMP_Text m_PlayerLabel;
 
     [SerializeField]
-    private TMP_Text m_OrientationLabel;
-
-    [SerializeField]
-    private TMP_Text m_BannerArrow;
-
-    [SerializeField]
-    private TMP_Text m_MiniArrow;
-
-    [SerializeField]
     private float m_SlideDistance = 32f;
 
     [SerializeField]
@@ -25,11 +16,14 @@ public class TurnBannerHUD : MonoBehaviour
     [SerializeField]
     private float m_MinHoldDuration = 0.6f;
 
+    [SerializeField]
+    private CanvasGroup m_WaitingOverlay;
+
     private CanvasGroup m_CanvasGroup;
     private RectTransform m_RectTransform;
     private Coroutine m_AnimationRoutine;
     private Vector2 m_DefaultAnchoredPosition;
-    private bool m_IsFlipped;
+    private bool m_IsLocalTurn;
 
     private void Awake()
     {
@@ -43,24 +37,20 @@ public class TurnBannerHUD : MonoBehaviour
         {
             m_DefaultAnchoredPosition = m_RectTransform.anchoredPosition;
         }
-
-        if (m_OrientationLabel != null)
-        {
-            m_OrientationLabel.text = string.Empty;
-        }
     }
 
     private void OnEnable()
     {
-        EventsManager.OnBoardFlipState.AddListener(OnBoardFlipStateChanged, true);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        EventsManager.OnLobbySnapshot.AddListener(OnLobbySnapshot, true);
         UpdateLabels(PuckController.IsWhiteTurn);
+        ApplyMutedState();
     }
 
     private void OnDisable()
     {
-        EventsManager.OnBoardFlipState.RemoveListener(OnBoardFlipStateChanged);
         EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        EventsManager.OnLobbySnapshot.RemoveListener(OnLobbySnapshot);
         if (m_AnimationRoutine != null)
         {
             StopCoroutine(m_AnimationRoutine);
@@ -68,19 +58,16 @@ public class TurnBannerHUD : MonoBehaviour
         }
     }
 
-    private void OnBoardFlipStateChanged(bool isFlipped)
-    {
-        m_IsFlipped = isFlipped;
-        UpdateLabels(PuckController.IsWhiteTurn);
-        UpdateArrows();
-        StartAnimationIfNeeded();
-    }
-
     private void OnTurnChanged(bool isWhiteTurn)
     {
         UpdateLabels(isWhiteTurn);
-        UpdateArrows();
+        ApplyMutedState();
         StartAnimationIfNeeded();
+    }
+
+    private void OnLobbySnapshot(LobbySnapshot _)
+    {
+        ApplyMutedState();
     }
 
     private void UpdateLabels(bool isWhiteTurn)
@@ -89,36 +76,6 @@ public class TurnBannerHUD : MonoBehaviour
         {
             m_PlayerLabel.text = isWhiteTurn ? "White's turn" : "Black's turn";
         }
-
-        if (m_OrientationLabel != null)
-        {
-            m_OrientationLabel.text = string.Empty;
-        }
-    }
-
-    private void UpdateArrows()
-    {
-        float zRotation = m_IsFlipped ? 180f : 0f;
-
-        if (m_BannerArrow != null)
-        {
-            RotateArrow(m_BannerArrow.rectTransform, zRotation);
-        }
-
-        if (m_MiniArrow != null)
-        {
-            RotateArrow(m_MiniArrow.rectTransform, zRotation);
-        }
-    }
-
-    private static void RotateArrow(RectTransform arrow, float zRotation)
-    {
-        if (arrow == null)
-        {
-            return;
-        }
-
-        arrow.localRotation = Quaternion.Euler(0f, 0f, zRotation);
     }
 
     private void StartAnimationIfNeeded()
@@ -158,8 +115,7 @@ public class TurnBannerHUD : MonoBehaviour
         m_RectTransform.anchoredPosition = m_DefaultAnchoredPosition;
         m_CanvasGroup.alpha = 1f;
 
-        float holdTime = Mathf.Max(BoardFlipper.GetFlipDuration(), m_MinHoldDuration);
-        yield return new WaitForSeconds(holdTime);
+        yield return new WaitForSeconds(m_MinHoldDuration);
 
         elapsed = 0f;
         while (elapsed < m_FadeDuration)
@@ -175,5 +131,17 @@ public class TurnBannerHUD : MonoBehaviour
         m_RectTransform.anchoredPosition = hiddenPosition;
         m_CanvasGroup.alpha = 0f;
         m_AnimationRoutine = null;
+    }
+
+    private void ApplyMutedState()
+    {
+        m_IsLocalTurn = PuckController.IsWhiteTurn == LobbyState.LocalIsWhitePlayer;
+
+        if (m_WaitingOverlay != null)
+        {
+            m_WaitingOverlay.alpha = m_IsLocalTurn ? 0f : 1f;
+            m_WaitingOverlay.blocksRaycasts = !m_IsLocalTurn;
+            m_WaitingOverlay.interactable = false;
+        }
     }
 }
