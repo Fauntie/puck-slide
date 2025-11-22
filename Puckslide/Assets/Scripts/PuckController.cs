@@ -182,6 +182,7 @@ public class PuckController : MonoBehaviour
         EventsManager.OnDeletePucks.AddListener(OnDelete);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
         EventsManager.OnPuckSpawned.Invoke(m_Rigidbody);
+        PuckControllerRouteHub.Register(this);
     }
 
     private void OnDisable()
@@ -189,6 +190,7 @@ public class PuckController : MonoBehaviour
         EventsManager.OnDeletePucks.RemoveListener(OnDelete);
         EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
         EventsManager.OnPuckDespawned.Invoke(m_Rigidbody);
+        PuckControllerRouteHub.Unregister(this);
         if (s_ActivePuck == this)
         {
             s_ActivePuck = null;
@@ -276,11 +278,25 @@ public class PuckController : MonoBehaviour
         m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
     }
 
-    private void OnMouseDown()
+    public void ProcessCommand(PlayerCommand command)
     {
+        switch (command.CommandType)
+        {
+            case PlayerCommandType.PointerDown:
+                BeginDrag(command.WorldPosition);
+                break;
+            case PlayerCommandType.PointerDrag:
+                ContinueDrag(command.WorldPosition);
+                break;
+            case PlayerCommandType.PointerUp:
+                ReleaseDrag(command.WorldPosition);
+                break;
+        }
+    }
 
+    private void BeginDrag(Vector3 pointerWorldPos)
+    {
         if (IsWhitePiece != s_IsWhiteTurn || (s_ActivePuck != null && s_ActivePuck != this) || m_HasReachedBoard || m_Rigidbody.velocity.magnitude > STOP_THRESHOLD)
-
         {
             m_IsSelected = false;
             return;
@@ -294,8 +310,8 @@ public class PuckController : MonoBehaviour
             m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
         }
 
-        m_DragStartPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
-        
+        m_DragStartPos = pointerWorldPos;
+
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = true;
@@ -322,14 +338,14 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    private void OnMouseDrag()
+    private void ContinueDrag(Vector3 pointerWorldPos)
     {
         if (!m_IsSelected)
         {
             return;
         }
 
-        Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 dragPos = pointerWorldPos;
         dragPos.z = 0;
 
         Vector3 puckCenter = transform.position;
@@ -365,30 +381,32 @@ public class PuckController : MonoBehaviour
         }
     }
 
-    private void OnMouseUp()
+    private void ReleaseDrag(Vector3 pointerWorldPos)
     {
         if (!m_IsSelected)
         {
             return;
         }
 
-        Vector3 dragEndPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
+        Vector3 dragEndPos = pointerWorldPos;
         Vector2 dragVector = (m_DragStartPos - dragEndPos);
         float dragDistance = Mathf.Min(dragVector.magnitude, m_MaxDragDistance);
         Vector2 dragDirection = dragVector.normalized;
         float powerRatio = dragDistance / m_MaxDragDistance;
         float force = powerRatio * m_MaxShootForce;
 
-        m_Rigidbody.bodyType = RigidbodyType2D.Dynamic;
-        m_Rigidbody.AddForce(dragDirection * force, ForceMode2D.Impulse);
+        Vector3 puckCenter = transform.position;
+        puckCenter.z = 0;
+
+        Vector3 direction = dragDirection;
+
+        Vector2 launchForce = direction * force;
+        m_Rigidbody.AddForce(launchForce, ForceMode2D.Impulse);
 
         if (m_LineRenderer != null)
         {
             m_LineRenderer.enabled = false;
-        }
-
-        if (m_DragLimitRenderer != null)
-        {
+            m_LineRenderer.positionCount = 0;
             m_DragLimitRenderer.enabled = false;
         }
 

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 [System.Serializable]
 public class RowData
@@ -34,7 +33,6 @@ public class BoardController : MonoBehaviour
     private readonly List<Tile> m_HighlightedTiles = new List<Tile>();
     private Tile m_PointerDownTile;
     private bool? m_LastMoveWasWhite = null;
-    private int? m_ActiveTouchId = null;
 
     private void OnEnable()
     {
@@ -142,102 +140,24 @@ public class BoardController : MonoBehaviour
         }
     }
 
-    private void Update()
+    public void ProcessCommand(PlayerCommand command)
     {
-        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+        switch (command.CommandType)
         {
-            return;
-        }
-
-        if (TryGetPointerDown(out Vector3 pointerDownWorldPos))
-        {
-            HandlePointerDown(pointerDownWorldPos);
-        }
-
-        if (m_DraggedPiece != null && TryGetPointerPosition(out Vector3 pointerWorldPos))
-        {
-            UpdateDraggedPiecePosition(pointerWorldPos);
-            RefreshHighlights(m_DraggedPiece, m_DragOriginTile, m_HighlightColor);
-        }
-
-        if (TryGetPointerUp(out Vector3 pointerUpWorldPos))
-        {
-            HandlePointerUp(pointerUpWorldPos);
-        }
-    }
-
-    private bool TryGetPointerDown(out Vector3 worldPos)
-    {
-        if (Input.touchCount > 0)
-        {
-            foreach (Touch touch in Input.touches)
-            {
-                if (touch.phase == TouchPhase.Began)
+            case PlayerCommandType.PointerDown:
+                HandlePointerDown(command.WorldPosition);
+                break;
+            case PlayerCommandType.PointerDrag:
+                if (m_DraggedPiece != null)
                 {
-                    m_ActiveTouchId = touch.fingerId;
-                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
-                    return true;
+                    UpdateDraggedPiecePosition(command.WorldPosition);
+                    RefreshHighlights(m_DraggedPiece, m_DragOriginTile, m_HighlightColor);
                 }
-            }
+                break;
+            case PlayerCommandType.PointerUp:
+                HandlePointerUp(command.WorldPosition);
+                break;
         }
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            m_ActiveTouchId = null;
-            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            return true;
-        }
-
-        worldPos = Vector3.zero;
-        return false;
-    }
-
-    private bool TryGetPointerPosition(out Vector3 worldPos)
-    {
-        if (m_ActiveTouchId.HasValue)
-        {
-            foreach (Touch touch in Input.touches)
-            {
-                if (touch.fingerId == m_ActiveTouchId.Value &&
-                    touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
-                {
-                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
-                    return true;
-                }
-            }
-        }
-        else if (Input.GetMouseButton(0))
-        {
-            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            return true;
-        }
-
-        worldPos = Vector3.zero;
-        return false;
-    }
-
-    private bool TryGetPointerUp(out Vector3 worldPos)
-    {
-        if (m_ActiveTouchId.HasValue)
-        {
-            foreach (Touch touch in Input.touches)
-            {
-                if (touch.fingerId == m_ActiveTouchId.Value &&
-                    (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled))
-                {
-                    worldPos = Camera.main.ScreenToWorldPoint(touch.position);
-                    return true;
-                }
-            }
-        }
-        else if (Input.GetMouseButtonUp(0))
-        {
-            worldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            return true;
-        }
-
-        worldPos = Vector3.zero;
-        return false;
     }
 
     private void HandlePointerDown(Vector3 pointerWorldPos)
@@ -301,7 +221,6 @@ public class BoardController : MonoBehaviour
         }
 
         m_PointerDownTile = null;
-        m_ActiveTouchId = null;
     }
 
     private Tile FindTileBelow(Vector3 pointerWorldPos)
