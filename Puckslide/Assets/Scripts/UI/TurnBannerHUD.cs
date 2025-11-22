@@ -43,12 +43,18 @@ public class TurnBannerHUD : MonoBehaviour
         {
             m_DefaultAnchoredPosition = m_RectTransform.anchoredPosition;
         }
+
+        if (m_OrientationLabel != null)
+        {
+            m_OrientationLabel.text = string.Empty;
+        }
     }
 
     private void OnEnable()
     {
         EventsManager.OnBoardFlipState.AddListener(OnBoardFlipStateChanged, true);
         EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        UpdateLabels(PuckController.IsWhiteTurn);
     }
 
     private void OnDisable()
@@ -65,6 +71,7 @@ public class TurnBannerHUD : MonoBehaviour
     private void OnBoardFlipStateChanged(bool isFlipped)
     {
         m_IsFlipped = isFlipped;
+        UpdateLabels(PuckController.IsWhiteTurn);
         UpdateArrows();
         StartAnimationIfNeeded();
     }
@@ -80,14 +87,12 @@ public class TurnBannerHUD : MonoBehaviour
     {
         if (m_PlayerLabel != null)
         {
-            m_PlayerLabel.text = isWhiteTurn ? "White's Turn" : "Black's Turn";
+            m_PlayerLabel.text = isWhiteTurn ? "White's turn" : "Black's turn";
         }
 
         if (m_OrientationLabel != null)
         {
-            string rotation = m_IsFlipped ? "Board rotated 180°" : "Board upright";
-            string viewer = isWhiteTurn ? "White view" : "Black view";
-            m_OrientationLabel.text = $"{viewer} — {rotation}";
+            m_OrientationLabel.text = string.Empty;
         }
     }
 
