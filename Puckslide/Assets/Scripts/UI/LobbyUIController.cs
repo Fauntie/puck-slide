@@ -86,6 +86,12 @@ public class LobbyUIController : MonoBehaviour
         m_TimeProvider = new ManualTimeProvider();
         m_Transport = SteamTransport.IsPlatformSupported ? (NetTransport)new SteamTransport() : new LoopbackTransport();
         m_UsingSteam = m_Transport is SteamTransport;
+#if STEAMWORKSNET
+        if (m_UsingSteam)
+        {
+            SteamPlatformService.EnsureInitialized();
+        }
+#endif
         m_Lobby = new LobbyStateMachine(m_Transport);
         m_SessionManager = new ResilientSessionManager<string>(
             m_Lobby.Transport,
@@ -189,6 +195,12 @@ public class LobbyUIController : MonoBehaviour
         BeginResilientTracking();
         RegisterPrivacyTerms();
         UpdateStatus();
+#if STEAMWORKSNET
+        if (m_UsingSteam)
+        {
+            SteamPlatformService.ReportSessionHosted();
+        }
+#endif
     }
 
     public void OnJoinClicked()
@@ -198,6 +210,12 @@ public class LobbyUIController : MonoBehaviour
         BeginResilientTracking();
         RegisterPrivacyTerms();
         UpdateStatus();
+#if STEAMWORKSNET
+        if (m_UsingSteam)
+        {
+            SteamPlatformService.ReportSessionJoined();
+        }
+#endif
     }
 
     public void OnReadyClicked()
@@ -390,6 +408,14 @@ public class LobbyUIController : MonoBehaviour
         }
 
         SetStatusOverride(string.Format(m_Localization.InviteSentFormat, inviteCode.Trim()));
+
+#if STEAMWORKSNET
+        if (m_UsingSteam)
+        {
+            CSteamID lobbyId = m_SteamLobbyManager != null ? m_SteamLobbyManager.CurrentLobby : CSteamID.Nil;
+            SteamPlatformService.OpenInviteOverlay(lobbyId);
+        }
+#endif
     }
 
     private void OnReadyToggled(bool ready)
@@ -414,6 +440,13 @@ public class LobbyUIController : MonoBehaviour
         {
             m_ReadyToggle.isOn = ready;
         }
+
+#if STEAMWORKSNET
+        if (ready && m_UsingSteam)
+        {
+            SteamPlatformService.ReportReadyState();
+        }
+#endif
     }
 
     public void SubmitChat()
