@@ -62,6 +62,9 @@
     <Compile Include="Assets\Scripts\Chess\Tile.cs" />
     <Compile Include="Assets\Scripts\UI\PieceSetupCounter.cs" />
     <Compile Include="Assets\Scripts\GameSetupManager.cs" />
+    <Compile Include="Assets\Scripts\Core\ChessPieceType.cs" />
+    <Compile Include="Assets\Scripts\Core\PieceSetupData.cs" />
+    <Compile Include="Assets\Scripts\Core\PieceSetupState.cs" />
     <Compile Include="Assets\Scripts\UI\StickySetup.cs" />
     <Compile Include="Assets\Scripts\Chess\Piece.cs" />
     <Compile Include="Assets\Scripts\GridManager.cs" />
@@ -70,6 +73,7 @@
     <Compile Include="Assets\Scripts\GridGenerator.cs" />
     <Compile Include="Assets\Scripts\UI\Phase1PieceButton.cs" />
     <Compile Include="Assets\Scripts\UI\TurnIndicator.cs" />
+    <Compile Include="Assets\Scripts\Util\Evt.cs" />
     <Compile Include="Assets\Scripts\Util\EventsManager.cs" />
     <Compile Include="Assets\Scripts\OneWayWall.cs" />
     <Compile Include="Assets\Scripts\Chess\PromotionPanel.cs" />
