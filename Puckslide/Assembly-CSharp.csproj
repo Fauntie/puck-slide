@@ -58,6 +58,7 @@
     <Compile Include="Assets\Scripts\Phase2Manager.cs" />
     <Compile Include="Assets\Scripts\PuckController.cs" />
     <Compile Include="Assets\Scripts\Chess\CapturedPieceUi.cs" />
+    <Compile Include="Assets\Scripts\UI\Phase1TurnIndicator.cs" />
     <Compile Include="Assets\Scripts\PuckFriction.cs" />
     <Compile Include="Assets\Scripts\Chess\Tile.cs" />
     <Compile Include="Assets\Scripts\UI\PieceSetupCounter.cs" />
@@ -71,6 +72,7 @@
     <Compile Include="Assets\Scripts\UI\Phase1PieceButton.cs" />
     <Compile Include="Assets\Scripts\UI\TurnIndicator.cs" />
     <Compile Include="Assets\Scripts\Util\EventsManager.cs" />
+    <Compile Include="Assets\Scripts\UI\TurnBannerHUD.cs" />
     <Compile Include="Assets\Scripts\OneWayWall.cs" />
     <Compile Include="Assets\Scripts\Chess\PromotionPanel.cs" />
   </ItemGroup>

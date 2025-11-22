@@ -367,8 +367,10 @@
 "Assets/Scripts/PuckController.cs"
 "Assets/Scripts/PuckFriction.cs"
 "Assets/Scripts/UI/Phase1PieceButton.cs"
+"Assets/Scripts/UI/Phase1TurnIndicator.cs"
 "Assets/Scripts/UI/PieceSetupCounter.cs"
 "Assets/Scripts/UI/StickySetup.cs"
+"Assets/Scripts/UI/TurnBannerHUD.cs"
 "Assets/Scripts/UI/TurnIndicator.cs"
 "Assets/Scripts/Util/EventsManager.cs"
 -langversion:9.0
