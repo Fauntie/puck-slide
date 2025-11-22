@@ -8,6 +8,7 @@ public class LoopbackTransport : NetTransport
         public LoopbackTransport Host;
         public readonly Dictionary<int, LoopbackTransport> Clients = new Dictionary<int, LoopbackTransport>();
         public int NextPeerId = 1;
+        public readonly Dictionary<int, DateTime> GracefulDisconnectExpiry = new Dictionary<int, DateTime>();
     }
 
     private static readonly Dictionary<int, LoopbackEndpoint> s_Endpoints = new Dictionary<int, LoopbackEndpoint>();
@@ -68,12 +69,15 @@ public class LoopbackTransport : NetTransport
         Enqueue(endpoint.Host, LocalPeerId, new NetMessage { Tick = 0, Payload = Array.Empty<byte>() });
     }
 
-    public void Disconnect(int peerId)
+    public void Disconnect(int peerId, bool allowGracefulReconnect = false, TimeSpan? graceWindow = null)
     {
         if (m_Endpoint == null)
         {
             return;
         }
+
+        TimeSpan effectiveWindow = graceWindow ?? TimeSpan.FromSeconds(5);
+        DateTime expiry = DateTime.UtcNow + effectiveWindow;
 
         if (IsHosting)
         {
@@ -83,6 +87,14 @@ public class LoopbackTransport : NetTransport
                 m_Peers.Remove(peerId);
                 client.m_Peers.Clear();
                 client.m_Endpoint = null;
+                if (allowGracefulReconnect)
+                {
+                    m_Endpoint.GracefulDisconnectExpiry[peerId] = expiry;
+                }
+                else
+                {
+                    m_Endpoint.GracefulDisconnectExpiry.Remove(peerId);
+                }
             }
         }
         else if (peerId == 0)
@@ -90,8 +102,47 @@ public class LoopbackTransport : NetTransport
             m_Endpoint.Clients.Remove(LocalPeerId);
             m_Endpoint.Host.m_Peers.Remove(LocalPeerId);
             m_Peers.Clear();
+            if (allowGracefulReconnect)
+            {
+                m_Endpoint.GracefulDisconnectExpiry[LocalPeerId] = expiry;
+            }
+            else
+            {
+                m_Endpoint.GracefulDisconnectExpiry.Remove(LocalPeerId);
+            }
             m_Endpoint = null;
         }
+    }
+
+    public bool TryReconnect(string address, int port, int peerId)
+    {
+        if (m_Endpoint != null)
+        {
+            return false;
+        }
+
+        if (!s_Endpoints.TryGetValue(port, out LoopbackEndpoint endpoint) || endpoint.Host == null)
+        {
+            return false;
+        }
+
+        if (!endpoint.GracefulDisconnectExpiry.TryGetValue(peerId, out DateTime expiry) || DateTime.UtcNow > expiry)
+        {
+            return false;
+        }
+
+        if (endpoint.Clients.ContainsKey(peerId))
+        {
+            return false;
+        }
+
+        LocalPeerId = peerId;
+        endpoint.Clients[peerId] = this;
+        m_Endpoint = endpoint;
+        m_Peers.Add(0);
+        endpoint.Host.m_Peers.Add(peerId);
+        Enqueue(endpoint.Host, peerId, new NetMessage { Tick = 0, Payload = Array.Empty<byte>() });
+        return true;
     }
 
     public void Send(int peerId, NetMessage message)
