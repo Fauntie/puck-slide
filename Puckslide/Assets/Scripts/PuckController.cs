@@ -332,7 +332,7 @@ public class PuckController : MonoBehaviour
         Vector3 dragPos = m_Camera.ScreenToWorldPoint(Input.mousePosition);
         dragPos.z = 0;
 
-        Vector3 puckCenter = m_StartPosition;
+        Vector3 puckCenter = transform.position;
         puckCenter.z = 0;
 
         Vector3 offset = dragPos - puckCenter;
@@ -363,9 +363,6 @@ public class PuckController : MonoBehaviour
 
             DrawDragLimitCircle(puckCenter);
         }
-
-        m_Rigidbody.MovePosition(endPos);
-        transform.position = endPos;
     }
 
     private void OnMouseUp()
