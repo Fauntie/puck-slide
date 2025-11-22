@@ -76,13 +76,25 @@ namespace Puckslide.Networking
 
         private void OnEnable()
         {
-            if (m_StartAsHost)
+            if (ShouldAutoStartHost())
             {
                 CreateLobby();
             }
 
             NetworkEvents.OnPlayerCommandSubmitted.AddListener(OnPlayerCommandSubmitted);
             NetworkEvents.OnTurnChanged.AddListener(OnTurnChangedForDeterminism, true);
+        }
+
+        private bool ShouldAutoStartHost()
+        {
+#if STEAMWORKSNET
+            if (SteamworksBootstrap.Instance != null && SteamworksBootstrap.Instance.DrivesNetworkSession)
+            {
+                return false;
+            }
+#endif
+
+            return m_StartAsHost;
         }
 
         private void OnDisable()
