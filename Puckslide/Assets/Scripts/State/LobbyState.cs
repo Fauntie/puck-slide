@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Puckslide.Networking;
 
 [Serializable]
 public class LobbySnapshot
@@ -37,33 +38,55 @@ public class LobbySnapshot
 
 public static class LobbyState
 {
-    private static LobbySnapshot s_LatestSnapshot;
+    private static NetworkLobbySnapshot s_LatestSnapshot;
 
     public static bool LocalIsHost { get; private set; } = true;
+    public static ulong LocalPeerId { get; private set; }
+    public static NetworkLobbySnapshot LatestNetworkSnapshot => s_LatestSnapshot;
+    public static LobbySnapshot LatestLobbySnapshot => s_LatestSnapshot?.Snapshot;
 
     public static bool LocalIsWhitePlayer
     {
         get
         {
-            if (s_LatestSnapshot == null)
+            LobbySnapshot snapshot = s_LatestSnapshot?.Snapshot;
+            if (snapshot == null)
             {
                 return true;
             }
 
-            return LocalIsHost ? s_LatestSnapshot.HostIsWhite : !s_LatestSnapshot.HostIsWhite;
+            return LocalIsHost ? snapshot.HostIsWhite : !snapshot.HostIsWhite;
         }
     }
-
-    public static LobbySnapshot LatestSnapshot => s_LatestSnapshot;
 
     public static void SetLocalHost(bool isHost)
     {
         LocalIsHost = isHost;
     }
 
-    public static void ApplySnapshot(LobbySnapshot snapshot)
+    public static void SetLocalPeerId(ulong peerId)
     {
+        LocalPeerId = peerId;
+    }
+
+    public static void ApplySnapshot(NetworkLobbySnapshot snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        if (snapshot.Snapshot == null)
+        {
+            snapshot.Snapshot = new LobbySnapshot
+            {
+                HostIsWhite = true,
+                PieceSetup = Array.Empty<PieceSetupData>()
+            };
+        }
+
         s_LatestSnapshot = snapshot;
-        EventsManager.OnLobbySnapshot.Invoke(snapshot);
+        LocalIsHost = snapshot.HostPeerId == LocalPeerId && snapshot.HostIsAuthoritative;
+        NetworkEvents.OnLobbySnapshot.Invoke(snapshot);
     }
 }

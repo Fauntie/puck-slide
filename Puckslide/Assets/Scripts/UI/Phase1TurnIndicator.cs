@@ -1,3 +1,4 @@
+using Puckslide.Networking;
 using TMPro;
 using UnityEngine;
 
@@ -17,17 +18,17 @@ public class Phase1TurnIndicator : MonoBehaviour
     private void OnEnable()
     {
         UpdateText(PuckController.IsWhiteTurn);
-        EventsManager.OnTurnChanged.AddListener(OnTurnChanged, true);
+        NetworkEvents.OnTurnChanged.AddListener(OnTurnChanged, true);
     }
 
     private void OnDisable()
     {
-        EventsManager.OnTurnChanged.RemoveListener(OnTurnChanged);
+        NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChanged);
     }
 
-    private void OnTurnChanged(bool isWhiteTurn)
+    private void OnTurnChanged(TurnChangeMessage message)
     {
-        UpdateText(isWhiteTurn);
+        UpdateText(message.IsWhiteTurn);
     }
 
     private void UpdateText(bool isWhiteTurn)

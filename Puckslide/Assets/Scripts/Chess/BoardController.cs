@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Puckslide.Networking;
 using UnityEngine;
 
 [System.Serializable]
@@ -48,13 +49,13 @@ public class BoardController : MonoBehaviour
             Destroy(child.gameObject);
         }
         
-        EventsManager.OnBoardLayout.AddListener(OnBoardLayout, true);
+        NetworkEvents.OnBoardLayout.AddListener(OnBoardLayout, true);
         m_LastMoveWasWhite = null;
     }
-    
+
     private void OnDisable()
     {
-        EventsManager.OnBoardLayout.RemoveListener(OnBoardLayout);
+        NetworkEvents.OnBoardLayout.RemoveListener(OnBoardLayout);
 
         ClearSelection();
         m_DraggedPiece = null;
