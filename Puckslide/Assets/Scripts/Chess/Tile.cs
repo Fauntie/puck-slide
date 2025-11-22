@@ -10,6 +10,9 @@ public class Tile : MonoBehaviour
     [SerializeField]
     private SpriteRenderer m_HighlightRenderer;
 
+    [SerializeField]
+    private Color m_DefaultHighlightColor = Color.white;
+
     private Piece m_CurrentPiece;
 
     private void Awake()
@@ -44,8 +47,14 @@ public class Tile : MonoBehaviour
 
     public void ShowHighlight()
     {
+        ShowHighlight(m_DefaultHighlightColor);
+    }
+
+    public void ShowHighlight(Color highlightColor)
+    {
         if (m_HighlightRenderer != null)
         {
+            m_HighlightRenderer.color = highlightColor;
             m_HighlightRenderer.enabled = true;
         }
     }
