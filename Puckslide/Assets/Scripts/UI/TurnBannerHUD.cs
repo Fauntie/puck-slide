@@ -80,7 +80,7 @@ public class TurnBannerHUD : MonoBehaviour
     {
         if (m_PlayerLabel != null)
         {
-            m_PlayerLabel.text = isWhiteTurn ? "You are White" : "You are Black";
+            m_PlayerLabel.text = isWhiteTurn ? "White's Turn" : "Black's Turn";
         }
 
         if (m_OrientationLabel != null)
