@@ -55,6 +55,8 @@ public class GameSetupManager : MonoBehaviour
     private GameObject m_Phase1Canvas;
     [SerializeField]
     private GameObject Phase1Environment;
+    [SerializeField]
+    private Button m_StartButton;
 
     public bool IsLocalHost => m_IsLocalHost;
 
@@ -63,31 +65,33 @@ public class GameSetupManager : MonoBehaviour
 
     private void OnEnable()
     {
+        m_IsLocalHost = LobbyState.LocalIsHost;
         LobbyState.SetLocalHost(m_IsLocalHost);
         NetworkEvents.OnDeletePucks.Invoke(true);
         PuckController.ResetTurnOrder();
 
         NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshotReceived, true);
 
-        m_PieceSetup = LobbySnapshot.ClonePieceSetup(m_PieceSetup);
-
-        if (LobbyState.LatestLobbySnapshot == null)
+        LobbySnapshot latestSnapshot = LobbyState.LatestLobbySnapshot;
+        if (latestSnapshot != null)
         {
-            m_PieceSetup = new PieceSetupData[]
-            {
-                new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
-                new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
-                new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
-                new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
-                new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
-                new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
-            };
+            m_PieceSetup = LobbySnapshot.ClonePieceSetup(latestSnapshot.PieceSetup);
+            m_HostIsWhite = latestSnapshot.HostIsWhite;
+        }
+        else
+        {
+            m_PieceSetup = LobbySnapshot.ClonePieceSetup(m_PieceSetup.Length == 0 ? CreateDefaultPieceSetup() : m_PieceSetup);
         }
 
         if (m_ColorToggle != null)
         {
             m_ColorToggle.isOn = m_HostIsWhite;
             m_ColorToggle.interactable = m_IsLocalHost;
+        }
+
+        if (m_StartButton != null)
+        {
+            m_StartButton.interactable = m_IsLocalHost;
         }
         NotifyCountsChanged();
     }
@@ -142,6 +146,7 @@ public class GameSetupManager : MonoBehaviour
         }
 
         NotifyCountsChanged();
+        BroadcastLocalSnapshot();
         return true;
     }
 
@@ -176,6 +181,7 @@ public class GameSetupManager : MonoBehaviour
         }
 
         NotifyCountsChanged();
+        BroadcastLocalSnapshot();
         return true;
     }
 
@@ -191,6 +197,8 @@ public class GameSetupManager : MonoBehaviour
             if (m_PieceSetup[i].Type == pieceType)
             {
                 m_PieceSetup[i].Sticky = isSticky;
+                NotifyCountsChanged();
+                BroadcastLocalSnapshot();
                 return;
             }
         }
@@ -236,6 +244,8 @@ public class GameSetupManager : MonoBehaviour
         {
             m_ColorToggle.isOn = m_HostIsWhite;
         }
+
+        BroadcastLocalSnapshot();
     }
 
 
@@ -256,12 +266,18 @@ public class GameSetupManager : MonoBehaviour
             return;
         }
 
+        m_IsLocalHost = LobbyState.LocalIsHost;
         m_PieceSetup = LobbySnapshot.ClonePieceSetup(snapshot.Snapshot.PieceSetup);
         m_HostIsWhite = snapshot.Snapshot.HostIsWhite;
         if (m_ColorToggle != null)
         {
             m_ColorToggle.isOn = m_HostIsWhite;
             m_ColorToggle.interactable = m_IsLocalHost;
+        }
+
+        if (m_StartButton != null)
+        {
+            m_StartButton.interactable = m_IsLocalHost;
         }
 
         NotifyCountsChanged();
@@ -318,5 +334,28 @@ public class GameSetupManager : MonoBehaviour
     private void NotifyCountsChanged()
     {
         CountsChanged?.Invoke();
+    }
+
+    private void BroadcastLocalSnapshot()
+    {
+        if (!m_IsLocalHost || NetworkSessionManager.Instance == null)
+        {
+            return;
+        }
+
+        NetworkSessionManager.Instance.BroadcastPieceSetup(m_PieceSetup, m_HostIsWhite);
+    }
+
+    private PieceSetupData[] CreateDefaultPieceSetup()
+    {
+        return new PieceSetupData[]
+        {
+            new PieceSetupData { Type = ChessPieceType.Pawn,   WhiteCount=4, BlackCount=4, Sticky=true },
+            new PieceSetupData { Type = ChessPieceType.Knight, WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Bishop, WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Rook,   WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.Queen,  WhiteCount=1, BlackCount=1, Sticky=false },
+            new PieceSetupData { Type = ChessPieceType.King,   WhiteCount=1, BlackCount=1, Sticky=true },
+        };
     }
 }

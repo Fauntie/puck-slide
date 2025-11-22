@@ -44,6 +44,7 @@ public static class LobbyState
     public static ulong LocalPeerId { get; private set; }
     public static NetworkLobbySnapshot LatestNetworkSnapshot => s_LatestSnapshot;
     public static LobbySnapshot LatestLobbySnapshot => s_LatestSnapshot?.Snapshot;
+    public static uint LatestSnapshotVersion => s_LatestSnapshot?.SnapshotVersion ?? 0u;
 
     public static bool LocalIsWhitePlayer
     {
@@ -83,6 +84,12 @@ public static class LobbyState
                 HostIsWhite = true,
                 PieceSetup = Array.Empty<PieceSetupData>()
             };
+        }
+
+        bool isNewLobby = s_LatestSnapshot == null || s_LatestSnapshot.LobbyId != snapshot.LobbyId;
+        if (!isNewLobby && snapshot.SnapshotVersion <= s_LatestSnapshot.SnapshotVersion)
+        {
+            return;
         }
 
         s_LatestSnapshot = snapshot;

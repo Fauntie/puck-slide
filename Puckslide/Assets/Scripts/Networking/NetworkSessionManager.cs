@@ -1,5 +1,4 @@
 using System;
-using System;
 using System.Collections;
 using UnityEngine;
 
@@ -38,6 +37,7 @@ namespace Puckslide.Networking
         private ulong m_LocalPeerId;
         private bool m_IsHost;
         private string m_CurrentLobbyId;
+        private LobbySnapshot m_PersistedLobbySnapshot;
 
         public static NetworkSessionManager Instance => s_Instance;
         public bool IsHost => m_IsHost;
@@ -80,6 +80,11 @@ namespace Puckslide.Networking
             m_CurrentLobbyId = string.IsNullOrEmpty(lobbyId) ? m_CurrentLobbyId : lobbyId;
             LobbyState.SetLocalHost(true);
             m_SnapshotVersion = 0;
+            m_PersistedLobbySnapshot = LobbyState.LatestLobbySnapshot ?? new LobbySnapshot
+            {
+                HostIsWhite = LobbyState.LocalIsWhitePlayer,
+                PieceSetup = Array.Empty<PieceSetupData>()
+            };
             StartSnapshotLoop();
             PublishLobbySnapshot("host-created");
 
@@ -131,11 +136,14 @@ namespace Puckslide.Networking
                 return;
             }
 
-            LobbySnapshot latest = LobbyState.LatestLobbySnapshot ?? new LobbySnapshot
+            LobbySnapshot latest = m_PersistedLobbySnapshot ?? LobbyState.LatestLobbySnapshot ?? new LobbySnapshot
             {
                 HostIsWhite = LobbyState.LocalIsWhitePlayer,
                 PieceSetup = Array.Empty<PieceSetupData>()
             };
+
+            m_PersistedLobbySnapshot = LobbySnapshot.Create(latest.PieceSetup, latest.HostIsWhite);
+            m_SnapshotVersion = Math.Max(m_SnapshotVersion, LobbyState.LatestSnapshotVersion);
 
             NetworkLobbySnapshot snapshot = new NetworkLobbySnapshot
             {
@@ -158,6 +166,7 @@ namespace Puckslide.Networking
                 return;
             }
 
+            m_SnapshotVersion = Math.Max(m_SnapshotVersion, LobbyState.LatestSnapshotVersion);
             PieceSetupMessage message = new PieceSetupMessage
             {
                 LobbyId = m_CurrentLobbyId,
@@ -168,6 +177,7 @@ namespace Puckslide.Networking
             };
 
             LobbySnapshot snapshot = LobbySnapshot.Create(message.Setup, message.HostIsWhite);
+            m_PersistedLobbySnapshot = snapshot;
             LobbyState.ApplySnapshot(new NetworkLobbySnapshot
             {
                 LobbyId = message.LobbyId,
@@ -271,6 +281,10 @@ namespace Puckslide.Networking
 
             m_CurrentLobbyId = snapshot.LobbyId;
             LobbyState.ApplySnapshot(snapshot);
+            if (snapshot.HostPeerId == m_LocalPeerId)
+            {
+                m_SnapshotVersion = Math.Max(m_SnapshotVersion, snapshot.SnapshotVersion);
+            }
         }
 
         private void StartSnapshotLoop()

@@ -16,18 +16,30 @@ public class StickySetup : MonoBehaviour
 
     private void OnEnable()
     {
-        m_StickyToggle.isOn = m_GameSetupManager.GetSticky(m_ChessPieceType);
-        m_StickyToggle.interactable = m_GameSetupManager.IsLocalHost;
+        Refresh();
+        m_GameSetupManager.CountsChanged += Refresh;
         m_StickyToggle.onValueChanged.AddListener(OnToggle);
     }
-    
+
     private void OnDisable()
     {
         m_StickyToggle.onValueChanged.RemoveListener(OnToggle);
+        m_GameSetupManager.CountsChanged -= Refresh;
     }
 
     private void OnToggle(bool isActive)
     {
         m_GameSetupManager.ToggleSticky(m_ChessPieceType, isActive);
+    }
+
+    private void Refresh()
+    {
+        if (m_GameSetupManager == null)
+        {
+            return;
+        }
+
+        m_StickyToggle.isOn = m_GameSetupManager.GetSticky(m_ChessPieceType);
+        m_StickyToggle.interactable = m_GameSetupManager.IsLocalHost;
     }
 }
