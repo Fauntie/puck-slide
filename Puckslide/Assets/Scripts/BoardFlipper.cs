@@ -136,6 +136,16 @@ public static class BoardFlipper
         return s_BoardTransform;
     }
 
+    public static bool IsFlipped()
+    {
+        return s_IsFlipped;
+    }
+
+    public static float GetFlipDuration()
+    {
+        return FLIP_DURATION;
+    }
+
     public static IEnumerator Flip()
     {
         if (s_BoardTransform == null)
@@ -270,6 +280,7 @@ public static class BoardFlipper
         };
 
         s_IsFlipped = targetFlippedState;
+        EventsManager.OnBoardFlipState.Invoke(s_IsFlipped);
         s_Animator.BeginAnimation(animationData);
 
         while (s_Animator.IsAnimating)
@@ -286,6 +297,7 @@ public static class BoardFlipper
         }
 
         s_IsFlipped = !s_IsFlipped;
+        EventsManager.OnBoardFlipState.Invoke(s_IsFlipped);
 
         // Keep camera rotation centred on the actual board centre.
         RecalculateBoardCenter();
