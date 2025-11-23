@@ -1,51 +1,42 @@
 #if MIRROR
 using Mirror;
+using Puckslide.Networking;
 
 namespace Puckslide.Networking
 {
     public struct MirrorLobbySnapshotMessage : NetworkMessage
     {
-        public NetworkLobbySnapshot Payload;
+        public NetworkLobbySnapshot Snapshot;
     }
 
-    public struct MirrorPieceSetupMessage : NetworkMessage
+    public struct MirrorPuckSnapshotMessage : NetworkMessage
     {
-        public PieceSetupMessage Payload;
-    }
-
-    public struct MirrorTurnChangeMessage : NetworkMessage
-    {
-        public TurnChangeMessage Payload;
-    }
-
-    public struct MirrorPuckSpawnMessage : NetworkMessage
-    {
-        public PuckSpawnMessage Payload;
-    }
-
-    public struct MirrorPuckDespawnMessage : NetworkMessage
-    {
-        public PuckDespawnMessage Payload;
-    }
-
-    public struct MirrorShotLaunchMessage : NetworkMessage
-    {
-        public ShotLaunchMessage Payload;
+        public PuckStateSnapshotMessage Snapshot;
     }
 
     public struct MirrorPlayerCommandMessage : NetworkMessage
     {
-        public PlayerCommandMessage Payload;
+        public PlayerCommandMessage Command;
     }
 
-    public struct MirrorPuckStateSnapshotMessage : NetworkMessage
+    public struct MirrorPuckSpawnMessage : NetworkMessage
     {
-        public PuckStateSnapshotMessage Payload;
+        public PuckSpawnMessage Puck;
+    }
+
+    public struct MirrorPuckDespawnMessage : NetworkMessage
+    {
+        public PuckDespawnMessage Puck;
+    }
+
+    public struct MirrorTurnChangeMessage : NetworkMessage
+    {
+        public TurnChangeMessage Turn;
     }
 
     public struct MirrorTurnDeterminismMessage : NetworkMessage
     {
-        public TurnDeterminismMessage Payload;
+        public TurnDeterminismMessage Turn;
     }
 }
 #endif
