@@ -30,6 +30,8 @@ namespace Puckslide.Networking
         private float m_AcceptablePacketLossPercent = 1.5f;
         [SerializeField]
         private int m_MaxTurnHistory = 5;
+        [SerializeField]
+        private float m_ConnectionTimeoutSeconds = 10f;
 
 #if MIRROR
         [SerializeField]
@@ -51,6 +53,8 @@ namespace Puckslide.Networking
         private readonly List<TurnDeterminismMessage> m_TurnHistory = new List<TurnDeterminismMessage>();
         private PlayerCommandDispatcher m_Dispatcher;
         private GridManager m_GridManager;
+        private double m_LastSnapshotReceivedTime;
+        private bool m_ConnectionTimedOut;
 
         public static NetworkSessionManager Instance => s_Instance;
         public bool IsHost => m_IsHost;
@@ -83,6 +87,7 @@ namespace Puckslide.Networking
 
             NetworkEvents.OnPlayerCommandSubmitted.AddListener(OnPlayerCommandSubmitted);
             NetworkEvents.OnTurnChanged.AddListener(OnTurnChangedForDeterminism, true);
+            NetworkEvents.OnPuckSnapshot.AddListener(OnAnyPuckSnapshot);
         }
 
         private bool ShouldAutoStartHost()
@@ -113,12 +118,34 @@ namespace Puckslide.Networking
 
             NetworkEvents.OnPlayerCommandSubmitted.RemoveListener(OnPlayerCommandSubmitted);
             NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChangedForDeterminism);
+            NetworkEvents.OnPuckSnapshot.RemoveListener(OnAnyPuckSnapshot);
+        }
+
+        private void Update()
+        {
+            if (m_ConnectionTimedOut)
+            {
+                return;
+            }
+
+            if (m_ConnectionTimeoutSeconds > 0f && m_LastSnapshotReceivedTime > 0d)
+            {
+                double now = Time.unscaledTimeAsDouble;
+                if (now - m_LastSnapshotReceivedTime > m_ConnectionTimeoutSeconds)
+                {
+                    m_ConnectionTimedOut = true;
+                    Debug.LogWarning("[Networking] Connection timed out (no snapshots received).");
+                    NetworkEvents.OnDisconnected.Invoke(NetworkDisconnectReason.Timeout);
+                }
+            }
         }
 
         public void CreateLobby(string lobbyId = null)
         {
             m_IsHost = true;
             m_CurrentLobbyId = string.IsNullOrEmpty(lobbyId) ? m_CurrentLobbyId : lobbyId;
+            m_LastSnapshotReceivedTime = Time.unscaledTimeAsDouble;
+            m_ConnectionTimedOut = false;
             LobbyState.SetLocalHost(true);
             m_SnapshotVersion = 0;
             m_PersistedLobbySnapshot = LobbyState.LatestLobbySnapshot ?? new LobbySnapshot
@@ -142,6 +169,8 @@ namespace Puckslide.Networking
         {
             m_IsHost = false;
             m_CurrentLobbyId = lobbyId;
+            m_LastSnapshotReceivedTime = Time.unscaledTimeAsDouble;
+            m_ConnectionTimedOut = false;
             LobbyState.SetLocalHost(false);
             StopSnapshotLoop();
             StopPuckSnapshotLoop();
@@ -513,6 +542,21 @@ namespace Puckslide.Networking
             }
 
             return puck.IsWhitePiece == PuckController.IsWhiteTurn;
+        }
+
+        public void HandleDisconnect(NetworkDisconnectReason reason)
+        {
+            StopSnapshotLoop();
+            StopPuckSnapshotLoop();
+            m_ConnectionTimedOut = false;
+            m_LastSnapshotReceivedTime = 0d;
+            Debug.Log($"[Networking] Handling disconnect ({reason}).");
+        }
+
+        private void OnAnyPuckSnapshot(PuckStateSnapshotMessage snapshot)
+        {
+            m_LastSnapshotReceivedTime = Time.unscaledTimeAsDouble;
+            m_ConnectionTimedOut = false;
         }
 
         private void PublishDeterminismSnapshot(uint turnNumber)
