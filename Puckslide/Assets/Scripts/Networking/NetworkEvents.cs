@@ -6,6 +6,7 @@ namespace Puckslide.Networking
 {
     public static class NetworkEvents
     {
+        public static readonly NetworkEvt<NetworkDisconnectReason> OnDisconnected = new NetworkEvt<NetworkDisconnectReason>();
         public static readonly NetworkEvt<bool> OnDeletePucks = new NetworkEvt<bool>();
         public static readonly NetworkEvt<PieceSetupMessage> OnPieceSetupData = new NetworkEvt<PieceSetupMessage>();
         public static readonly NetworkEvt<Dictionary<Vector2Int, ChessPiece>> OnBoardLayout = new NetworkEvt<Dictionary<Vector2Int, ChessPiece>>();
@@ -26,6 +27,15 @@ namespace Puckslide.Networking
         public static readonly NetworkEvt<PlayerCommandMessage> OnPlayerCommandSubmitted = new NetworkEvt<PlayerCommandMessage>();
         public static readonly NetworkEvt<PuckStateSnapshotMessage> OnPuckSnapshot = new NetworkEvt<PuckStateSnapshotMessage>();
         public static readonly NetworkEvt<TurnDeterminismMessage> OnTurnDeterminism = new NetworkEvt<TurnDeterminismMessage>();
+    }
+
+    public enum NetworkDisconnectReason
+    {
+        Unknown,
+        RemoteClosed,
+        Timeout,
+        Kicked,
+        TransportError
     }
 
     public class NetworkEvt<T>

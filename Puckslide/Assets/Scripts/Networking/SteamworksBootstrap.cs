@@ -34,6 +34,20 @@ namespace Puckslide.Networking
         private bool m_DriveNetworkSession = true;
         [SerializeField]
         private NetworkSessionManager m_SessionManager;
+        [SerializeField]
+        private int m_MaxPlayers = 2;
+#if STEAMWORKSNET
+        [SerializeField]
+        private ELobbyType m_DefaultLobbyType = ELobbyType.k_ELobbyTypeFriendsOnly;
+#else
+        [SerializeField]
+        private int m_DefaultLobbyType = 0;
+#endif
+        [Header("Quickplay")]
+        [SerializeField]
+        private bool m_EnableQuickplay = true;
+        [SerializeField]
+        private int m_QuickplayMaxPlayers = 2;
 
         public bool Initialized { get; private set; }
         public bool LoggedOn { get; private set; }
@@ -66,6 +80,15 @@ namespace Puckslide.Networking
             if (m_InitializeOnAwake)
             {
                 Initialize();
+            }
+
+            if (m_DriveNetworkSession && m_SessionManager == null)
+            {
+                m_SessionManager = FindObjectOfType<NetworkSessionManager>();
+                if (m_SessionManager == null)
+                {
+                    Debug.LogWarning("[Steamworks] m_DriveNetworkSession is true, but no NetworkSessionManager was found in the scene.");
+                }
             }
         }
 
@@ -143,6 +166,56 @@ namespace Puckslide.Networking
 #else
             Debug.LogWarning("Steamworks.NET is not enabled; Steam features are disabled.");
 #endif
+        }
+
+        public void HostSteamLobby()
+        {
+            if (!Initialized)
+            {
+                Debug.LogWarning("[Steamworks] Cannot host lobby before initialization.");
+                return;
+            }
+
+            CreateLobby(m_MaxPlayers, m_DefaultLobbyType);
+        }
+
+        public void JoinSteamLobbyById(ulong lobbyId)
+        {
+            if (!Initialized)
+            {
+                Debug.LogWarning("[Steamworks] Cannot join lobby before initialization.");
+                return;
+            }
+
+            JoinLobby(lobbyId);
+        }
+
+        public void RequestQuickplayLobbies()
+        {
+            if (!Initialized)
+            {
+                Debug.LogWarning("[Steamworks] Cannot request quickplay lobbies before initialization.");
+                return;
+            }
+
+            RequestLobbyList();
+        }
+
+        public void Quickplay()
+        {
+            if (!m_EnableQuickplay)
+            {
+                Debug.Log("[Steamworks] Quickplay is disabled.");
+                return;
+            }
+
+            if (!Initialized)
+            {
+                Debug.LogWarning("[Steamworks] Cannot quickplay before initialization.");
+                return;
+            }
+
+            RequestLobbyList();
         }
 
         private void WriteSteamAppId()
@@ -274,6 +347,11 @@ namespace Puckslide.Networking
             }
 
             OnLobbyListUpdated?.Invoke(summaries);
+
+            if (m_EnableQuickplay)
+            {
+                HandleQuickplayFromSummaries(summaries);
+            }
         }
 
         private void OnLobbyCreated(LobbyCreated_t result, bool ioFailure)
@@ -345,6 +423,33 @@ namespace Puckslide.Networking
             Debug.Log($"[Steamworks] Received lobby invite to {lobbyId} from {invite.m_ulSteamIDUser}.");
         }
 #endif
+
+        private void HandleQuickplayFromSummaries(IReadOnlyList<SteamLobbySummary> summaries)
+        {
+            SteamLobbySummary? best = null;
+            foreach (SteamLobbySummary summary in summaries)
+            {
+                if (summary.MemberCount >= summary.MaxMembers)
+                {
+                    continue;
+                }
+
+                if (best == null || summary.MemberCount > best.Value.MemberCount)
+                {
+                    best = summary;
+                }
+            }
+
+            if (best.HasValue)
+            {
+                Debug.Log($"[Steamworks] Quickplay joining lobby {best.Value.LobbyId} ({best.Value.MemberCount}/{best.Value.MaxMembers}).");
+                JoinLobby(best.Value.LobbyId);
+                return;
+            }
+
+            Debug.Log("[Steamworks] Quickplay creating a new lobby (no suitable existing lobbies).");
+            CreateLobby(m_QuickplayMaxPlayers, m_DefaultLobbyType);
+        }
     }
 
     public struct SteamLobbySummary
