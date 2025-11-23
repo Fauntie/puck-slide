@@ -45,6 +45,24 @@ namespace Puckslide.Networking
 
         private bool IsHost => Session != null && Session.IsHost;
 
+        /// <summary>
+        /// Called by non-host clients to send a PlayerCommandMessage to the host.
+        /// </summary>
+        public void SendPlayerCommand(PlayerCommandMessage message)
+        {
+            // Clients only
+            if (!NetworkClient.active || NetworkServer.active)
+            {
+                // Either not connected or we are the host; do nothing here.
+                return;
+            }
+
+            NetworkClient.Send(new MirrorPlayerCommandMessage
+            {
+                Command = message
+            });
+        }
+
         private void RegisterClientHandlers()
         {
             NetworkClient.RegisterHandler<MirrorLobbySnapshotMessage>(OnMirrorLobbySnapshotReceived);
@@ -211,7 +229,25 @@ namespace Puckslide.Networking
 
         private void OnMirrorPlayerCommandReceived(NetworkConnectionToClient conn, MirrorPlayerCommandMessage msg)
         {
-            NetworkEvents.OnPlayerCommandSubmitted.Invoke(msg.Command);
+            // Server-only: this should only run on host.
+            if (!NetworkServer.active)
+            {
+                return;
+            }
+
+            PlayerCommandMessage commandMessage = msg.Command;
+
+            // Optional validation against current lobby.
+            NetworkSessionManager manager = NetworkSessionManager.Instance;
+            if (manager != null && !string.IsNullOrEmpty(manager.LobbyId))
+            {
+                if (commandMessage.LobbyId != manager.LobbyId)
+                {
+                    return;
+                }
+            }
+
+            NetworkEvents.OnPlayerCommandSubmitted.Invoke(commandMessage);
         }
     }
 }

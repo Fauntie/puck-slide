@@ -320,28 +320,35 @@ namespace Puckslide.Networking
 
         public void SubmitPlayerCommand(PlayerCommand command)
         {
-            if (command.CommandType == PlayerCommandType.PointerUp && command.Target == PlayerCommandTarget.Puck)
+            // Host: apply command directly into the simulation.
+            if (m_IsHost)
             {
                 TryApplyCommandAsHost(command);
                 return;
             }
 
-            if (!m_IsHost)
+            // Client: wrap into a PlayerCommandMessage
+            PlayerCommandMessage message = new PlayerCommandMessage
             {
-                PlayerCommandMessage message = new PlayerCommandMessage
-                {
-                    LobbyId = m_CurrentLobbyId,
-                    Command = command,
-                    ClientTime = Time.unscaledTimeAsDouble,
-                    ServerTime = 0d
-                };
+                LobbyId = m_CurrentLobbyId,
+                Command = command,
+                ClientTime = Time.unscaledTimeAsDouble,
+                ServerTime = 0d
+            };
 
-                NetworkEvents.OnPlayerCommandSubmitted.Invoke(message);
-            }
-            else
+#if MIRROR
+            // If we have a Mirror bridge and a live client connection,
+            // send the command to the host over the network.
+            if (MirrorNetworkBridge.Instance != null)
             {
-                TryApplyCommandAsHost(command);
+                MirrorNetworkBridge.Instance.SendPlayerCommand(message);
+                return;
             }
+#endif
+
+            // Fallback path (no Mirror / offline testing): behave as before,
+            // delivering the message directly into the host event handler.
+            NetworkEvents.OnPlayerCommandSubmitted.Invoke(message);
         }
 
         public void ReceiveSnapshot(NetworkLobbySnapshot snapshot)
