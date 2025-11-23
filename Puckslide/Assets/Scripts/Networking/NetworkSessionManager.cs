@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Puckslide;
 
 #if MIRROR
 using Mirror;
@@ -32,6 +33,12 @@ namespace Puckslide.Networking
         private int m_MaxTurnHistory = 5;
         [SerializeField]
         private float m_ConnectionTimeoutSeconds = 10f;
+        [SerializeField]
+        private bool m_OfflineMode;
+        [SerializeField]
+        private BuildConfig m_BuildConfig;
+        [SerializeField]
+        private NetworkDiagnostics m_Diagnostics;
 
 #if MIRROR
         [SerializeField]
@@ -59,6 +66,8 @@ namespace Puckslide.Networking
         public static NetworkSessionManager Instance => s_Instance;
         public bool IsHost => m_IsHost;
         public string LobbyId => m_CurrentLobbyId;
+        public bool OfflineMode => m_OfflineMode;
+        public NetworkDiagnostics Diagnostics => m_Diagnostics;
 
         private void Awake()
         {
@@ -99,6 +108,11 @@ namespace Puckslide.Networking
             }
 #endif
 
+            if (m_OfflineMode)
+            {
+                return false;
+            }
+
             return m_StartAsHost;
         }
 
@@ -123,6 +137,11 @@ namespace Puckslide.Networking
 
         private void Update()
         {
+            if (m_OfflineMode)
+            {
+                return;
+            }
+
             if (m_ConnectionTimedOut)
             {
                 return;
@@ -142,6 +161,14 @@ namespace Puckslide.Networking
 
         public void CreateLobby(string lobbyId = null)
         {
+            if (m_OfflineMode)
+            {
+                m_IsHost = true;
+                LobbyState.SetLocalHost(true);
+                m_CurrentLobbyId = string.IsNullOrEmpty(lobbyId) ? m_CurrentLobbyId : lobbyId;
+                return;
+            }
+
             m_IsHost = true;
             m_CurrentLobbyId = string.IsNullOrEmpty(lobbyId) ? m_CurrentLobbyId : lobbyId;
             m_LastSnapshotReceivedTime = Time.unscaledTimeAsDouble;
@@ -158,7 +185,7 @@ namespace Puckslide.Networking
             PublishLobbySnapshot("host-created");
 
 #if MIRROR
-            if (m_NetworkManager != null)
+            if (m_NetworkManager != null && IsMirrorEnabled())
             {
                 m_NetworkManager.StartHost();
             }
@@ -167,6 +194,12 @@ namespace Puckslide.Networking
 
         public void JoinLobby(string lobbyId)
         {
+            if (m_OfflineMode)
+            {
+                Debug.Log("[Networking] Offline mode is enabled; ignoring JoinLobby call.");
+                return;
+            }
+
             m_IsHost = false;
             m_CurrentLobbyId = lobbyId;
             m_LastSnapshotReceivedTime = Time.unscaledTimeAsDouble;
@@ -176,7 +209,7 @@ namespace Puckslide.Networking
             StopPuckSnapshotLoop();
 
 #if MIRROR
-            if (m_NetworkManager != null)
+            if (m_NetworkManager != null && IsMirrorEnabled())
             {
                 m_NetworkManager.networkAddress = lobbyId;
                 m_NetworkManager.StartClient();
@@ -376,6 +409,12 @@ namespace Puckslide.Networking
 
         public void SubmitPlayerCommand(PlayerCommand command)
         {
+            if (m_OfflineMode)
+            {
+                TryApplyCommandAsHost(command);
+                return;
+            }
+
             // Host: apply command directly into the simulation.
             if (m_IsHost)
             {
@@ -395,7 +434,7 @@ namespace Puckslide.Networking
 #if MIRROR
             // If we have a Mirror bridge and a live client connection,
             // send the command to the host over the network.
-            if (MirrorNetworkBridge.Instance != null)
+            if (MirrorNetworkBridge.Instance != null && IsMirrorEnabled())
             {
                 MirrorNetworkBridge.Instance.SendPlayerCommand(message);
                 return;
@@ -424,6 +463,11 @@ namespace Puckslide.Networking
 
         private void StartSnapshotLoop()
         {
+            if (m_OfflineMode)
+            {
+                return;
+            }
+
             StopSnapshotLoop();
             if (m_SnapshotIntervalSeconds > 0f)
             {
@@ -433,6 +477,11 @@ namespace Puckslide.Networking
 
         private void StartPuckSnapshotLoop()
         {
+            if (m_OfflineMode)
+            {
+                return;
+            }
+
             StopPuckSnapshotLoop();
             if (m_PuckSnapshotInterval > 0f)
             {
@@ -592,5 +641,41 @@ namespace Puckslide.Networking
                 PublishPuckSnapshot();
             }
         }
+
+        public void SetOfflineMode(bool offline)
+        {
+            m_OfflineMode = offline;
+            if (offline)
+            {
+                m_IsHost = true;
+                LobbyState.SetLocalHost(true);
+                StopSnapshotLoop();
+                StopPuckSnapshotLoop();
+            }
+        }
+
+        private bool IsMirrorEnabled()
+        {
+            BuildConfig config = ResolveBuildConfig();
+            return config == null || config.EnableMirror;
+        }
+
+        private BuildConfig ResolveBuildConfig()
+        {
+            if (m_BuildConfig != null)
+            {
+                return m_BuildConfig;
+            }
+
+            m_BuildConfig = Resources.Load<BuildConfig>("BuildConfig");
+            return m_BuildConfig;
+        }
+    }
+
+    [Serializable]
+    public class NetworkDiagnostics
+    {
+        public float LatencyEstimateMs;
+        public float PacketLossEstimatePercent;
     }
 }
