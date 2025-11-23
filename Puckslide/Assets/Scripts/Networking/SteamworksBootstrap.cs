@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
+using Puckslide;
+using TMPro;
 
 #if STEAMWORKSNET
 using Steamworks;
@@ -43,6 +45,11 @@ namespace Puckslide.Networking
         [SerializeField]
         private int m_DefaultLobbyType = 0;
 #endif
+        [Header("Debug")]
+        [SerializeField]
+        private TMP_Text m_DebugStatusLabel;
+        [SerializeField]
+        private BuildConfig m_BuildConfig;
         [Header("Quickplay")]
         [SerializeField]
         private bool m_EnableQuickplay = true;
@@ -119,6 +126,13 @@ namespace Puckslide.Networking
 
         public void Initialize()
         {
+            if (!IsSteamEnabled())
+            {
+                Debug.Log("[Steamworks] Steam initialization disabled via BuildConfig.");
+                UpdateDebugStatusLabel("Steam: DISABLED (BuildConfig)");
+                return;
+            }
+
 #if STEAMWORKSNET
             if (Initialized)
             {
@@ -135,6 +149,7 @@ namespace Puckslide.Networking
             if (!Packsize.Test() || !DllCheck.Test())
             {
                 Debug.LogError("[Steamworks] Steamworks binaries appear to be the wrong version for this platform.");
+                UpdateDebugStatusLabel("Steam: FAILED (binary mismatch)");
                 return;
             }
 
@@ -142,6 +157,7 @@ namespace Puckslide.Networking
             if (!Initialized)
             {
                 Debug.LogError("[Steamworks] Steam API initialization failed.");
+                UpdateDebugStatusLabel("Steam: FAILED (running without Steam)");
                 return;
             }
 
@@ -163,8 +179,10 @@ namespace Puckslide.Networking
             }
 
             Debug.Log($"[Steamworks] Initialized. Logged in: {LoggedOn} as {PersonaName} ({SteamId}).");
+            UpdateDebugStatusLabel($"Steam: OK ({PersonaName})");
 #else
             Debug.LogWarning("Steamworks.NET is not enabled; Steam features are disabled.");
+            UpdateDebugStatusLabel("Steam: FAILED (Steamworks disabled)");
 #endif
         }
 
@@ -449,6 +467,31 @@ namespace Puckslide.Networking
 
             Debug.Log("[Steamworks] Quickplay creating a new lobby (no suitable existing lobbies).");
             CreateLobby(m_QuickplayMaxPlayers, m_DefaultLobbyType);
+        }
+
+        private bool IsSteamEnabled()
+        {
+            BuildConfig config = ResolveBuildConfig();
+            return config == null || config.EnableSteam;
+        }
+
+        private BuildConfig ResolveBuildConfig()
+        {
+            if (m_BuildConfig != null)
+            {
+                return m_BuildConfig;
+            }
+
+            m_BuildConfig = Resources.Load<BuildConfig>("BuildConfig");
+            return m_BuildConfig;
+        }
+
+        private void UpdateDebugStatusLabel(string text)
+        {
+            if (m_DebugStatusLabel != null)
+            {
+                m_DebugStatusLabel.text = text;
+            }
         }
     }
 
