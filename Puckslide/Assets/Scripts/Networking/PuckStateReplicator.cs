@@ -14,6 +14,12 @@ namespace Puckslide.Networking
 
         private void OnEnable()
         {
+            NetworkSessionManager manager = NetworkSessionManager.Instance;
+            if (manager != null && manager.IsHost)
+            {
+                return;
+            }
+
             NetworkEvents.OnPuckSnapshot.AddListener(OnSnapshot);
             NetworkEvents.OnNetworkPuckSpawned.AddListener(OnSpawned);
         }

@@ -203,6 +203,26 @@ namespace Puckslide.Networking
             LobbyState.ApplySnapshot(snapshot);
         }
 
+        public void UpdateHostPieceSetup(PieceSetupData[] setupData, bool? hostIsWhiteOverride = null)
+        {
+            if (!m_IsHost)
+            {
+                Debug.LogWarning("Only host should call UpdateHostPieceSetup.");
+                return;
+            }
+
+            LobbySnapshot latest = m_PersistedLobbySnapshot ?? LobbyState.LatestLobbySnapshot ?? new LobbySnapshot
+            {
+                HostIsWhite = LobbyState.LocalIsWhitePlayer,
+                PieceSetup = Array.Empty<PieceSetupData>()
+            };
+
+            bool hostIsWhite = hostIsWhiteOverride ?? latest.HostIsWhite;
+            m_PersistedLobbySnapshot = LobbySnapshot.Create(setupData, hostIsWhite);
+
+            PublishLobbySnapshot("piece-setup-updated");
+        }
+
         public void BroadcastPieceSetup(PieceSetupData[] setup, bool hostIsWhite)
         {
             if (!m_IsHost)
@@ -211,27 +231,17 @@ namespace Puckslide.Networking
                 return;
             }
 
+            UpdateHostPieceSetup(setup, hostIsWhite);
+
             m_SnapshotVersion = Math.Max(m_SnapshotVersion, LobbyState.LatestSnapshotVersion);
             PieceSetupMessage message = new PieceSetupMessage
             {
                 LobbyId = m_CurrentLobbyId,
                 Setup = LobbySnapshot.ClonePieceSetup(setup),
                 HostIsWhite = hostIsWhite,
-                Version = ++m_SnapshotVersion,
+                Version = m_SnapshotVersion,
                 ServerTime = Time.unscaledTimeAsDouble
             };
-
-            LobbySnapshot snapshot = LobbySnapshot.Create(message.Setup, message.HostIsWhite);
-            m_PersistedLobbySnapshot = snapshot;
-            LobbyState.ApplySnapshot(new NetworkLobbySnapshot
-            {
-                LobbyId = message.LobbyId,
-                Snapshot = snapshot,
-                HostIsAuthoritative = m_IsHost,
-                HostPeerId = m_LocalPeerId,
-                SnapshotVersion = message.Version,
-                ServerTime = message.ServerTime
-            });
 
             NetworkEvents.OnPieceSetupData.Invoke(message);
         }
