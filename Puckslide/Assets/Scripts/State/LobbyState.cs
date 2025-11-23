@@ -41,31 +41,19 @@ public static class LobbyState
     private static NetworkLobbySnapshot s_LatestSnapshot;
 
     public static bool LocalIsHost { get; private set; } = true;
-    public static ulong LocalPeerId { get; private set; }
+    public static string LocalPeerId { get; private set; }
+    public static bool LocalIsWhitePlayer { get; private set; } = true;
+    public static NetworkLobbySnapshot LatestSnapshot => s_LatestSnapshot;
     public static NetworkLobbySnapshot LatestNetworkSnapshot => s_LatestSnapshot;
     public static LobbySnapshot LatestLobbySnapshot => s_LatestSnapshot?.Snapshot;
     public static uint LatestSnapshotVersion => s_LatestSnapshot?.SnapshotVersion ?? 0u;
-
-    public static bool LocalIsWhitePlayer
-    {
-        get
-        {
-            LobbySnapshot snapshot = s_LatestSnapshot?.Snapshot;
-            if (snapshot == null)
-            {
-                return true;
-            }
-
-            return LocalIsHost ? snapshot.HostIsWhite : !snapshot.HostIsWhite;
-        }
-    }
 
     public static void SetLocalHost(bool isHost)
     {
         LocalIsHost = isHost;
     }
 
-    public static void SetLocalPeerId(ulong peerId)
+    public static void SetLocalPeerId(string peerId)
     {
         LocalPeerId = peerId;
     }
@@ -94,6 +82,17 @@ public static class LobbyState
 
         s_LatestSnapshot = snapshot;
         LocalIsHost = snapshot.HostPeerId == LocalPeerId && snapshot.HostIsAuthoritative;
+
+        bool hostIsWhite = snapshot.Snapshot.HostIsWhite;
+        if (LocalIsHost)
+        {
+            LocalIsWhitePlayer = hostIsWhite;
+        }
+        else
+        {
+            LocalIsWhitePlayer = !hostIsWhite;
+        }
+
         NetworkEvents.OnLobbySnapshot.Invoke(snapshot);
     }
 }

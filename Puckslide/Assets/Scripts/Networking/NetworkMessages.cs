@@ -9,8 +9,15 @@ namespace Puckslide.Networking
         public string LobbyId;
         public LobbySnapshot Snapshot;
         public bool HostIsAuthoritative;
-        public ulong HostPeerId;
+        public string HostPeerId;
         public uint SnapshotVersion;
+        public double ServerTime;
+    }
+
+    [Serializable]
+    public struct GameStartMessage
+    {
+        public string LobbyId;
         public double ServerTime;
     }
 

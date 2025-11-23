@@ -19,6 +19,7 @@ namespace Puckslide.Networking
         });
         public static readonly NetworkEvt<bool> OnBoardFlipState = new NetworkEvt<bool>();
         public static readonly NetworkEvt<NetworkLobbySnapshot> OnLobbySnapshot = new NetworkEvt<NetworkLobbySnapshot>();
+        public static readonly NetworkEvt<GameStartMessage> OnGameStart = new NetworkEvt<GameStartMessage>();
         public static readonly NetworkEvt<PuckSpawnMessage> OnNetworkPuckSpawned = new NetworkEvt<PuckSpawnMessage>();
         public static readonly NetworkEvt<PuckDespawnMessage> OnNetworkPuckDespawned = new NetworkEvt<PuckDespawnMessage>();
         public static readonly NetworkEvt<ShotLaunchMessage> OnShotLaunched = new NetworkEvt<ShotLaunchMessage>();
