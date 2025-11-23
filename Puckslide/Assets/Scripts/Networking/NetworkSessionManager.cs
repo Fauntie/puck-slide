@@ -44,7 +44,7 @@ namespace Puckslide.Networking
         private Coroutine m_SnapshotRoutine;
         private Coroutine m_PuckSnapshotRoutine;
         private uint m_SnapshotVersion;
-        private ulong m_LocalPeerId;
+        private string m_LocalPeerId;
         private bool m_IsHost;
         private string m_CurrentLobbyId;
         private LobbySnapshot m_PersistedLobbySnapshot;
@@ -66,7 +66,7 @@ namespace Puckslide.Networking
 
             s_Instance = this;
             m_CurrentLobbyId = string.IsNullOrEmpty(m_DefaultLobbyId) ? Guid.NewGuid().ToString("N") : m_DefaultLobbyId;
-            m_LocalPeerId = (ulong)UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            m_LocalPeerId = Guid.NewGuid().ToString("N");
             LobbyState.SetLocalPeerId(m_LocalPeerId);
 
             m_Dispatcher = PlayerCommandDispatcher.Instance ?? FindObjectOfType<PlayerCommandDispatcher>();
@@ -155,7 +155,7 @@ namespace Puckslide.Networking
 #endif
         }
 
-        public void PromoteNewHost(ulong hostPeerId)
+        public void PromoteNewHost(string hostPeerId)
         {
             bool localIsNewHost = hostPeerId == m_LocalPeerId;
             m_IsHost = localIsNewHost;
@@ -171,6 +171,23 @@ namespace Puckslide.Networking
                 StopSnapshotLoop();
                 StopPuckSnapshotLoop();
             }
+        }
+
+        public void StartMatchAsHost()
+        {
+            if (!m_IsHost)
+            {
+                Debug.LogWarning("Only host can start the match.");
+                return;
+            }
+
+            GameStartMessage message = new GameStartMessage
+            {
+                LobbyId = m_CurrentLobbyId,
+                ServerTime = Time.unscaledTimeAsDouble
+            };
+
+            NetworkEvents.OnGameStart.Invoke(message);
         }
 
         public void PublishLobbySnapshot(string reason)

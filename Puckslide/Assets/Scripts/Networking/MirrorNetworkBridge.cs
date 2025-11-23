@@ -66,6 +66,7 @@ namespace Puckslide.Networking
         private void RegisterClientHandlers()
         {
             NetworkClient.RegisterHandler<MirrorLobbySnapshotMessage>(OnMirrorLobbySnapshotReceived);
+            NetworkClient.RegisterHandler<MirrorGameStartMessage>(OnMirrorGameStartReceived);
             NetworkClient.RegisterHandler<MirrorPuckSnapshotMessage>(OnMirrorPuckSnapshotReceived);
             NetworkClient.RegisterHandler<MirrorPuckSpawnMessage>(OnMirrorPuckSpawnReceived);
             NetworkClient.RegisterHandler<MirrorPuckDespawnMessage>(OnMirrorPuckDespawnReceived);
@@ -76,6 +77,7 @@ namespace Puckslide.Networking
         private void UnregisterClientHandlers()
         {
             NetworkClient.UnregisterHandler<MirrorLobbySnapshotMessage>();
+            NetworkClient.UnregisterHandler<MirrorGameStartMessage>();
             NetworkClient.UnregisterHandler<MirrorPuckSnapshotMessage>();
             NetworkClient.UnregisterHandler<MirrorPuckSpawnMessage>();
             NetworkClient.UnregisterHandler<MirrorPuckDespawnMessage>();
@@ -86,6 +88,7 @@ namespace Puckslide.Networking
         private void RegisterServerHandlers()
         {
             NetworkServer.RegisterHandler<MirrorLobbySnapshotMessage>(OnMirrorLobbySnapshotReceived);
+            NetworkServer.RegisterHandler<MirrorGameStartMessage>(OnMirrorGameStartReceived);
             NetworkServer.RegisterHandler<MirrorPuckSnapshotMessage>(OnMirrorPuckSnapshotReceived);
             NetworkServer.RegisterHandler<MirrorPuckSpawnMessage>(OnMirrorPuckSpawnReceived);
             NetworkServer.RegisterHandler<MirrorPuckDespawnMessage>(OnMirrorPuckDespawnReceived);
@@ -97,6 +100,7 @@ namespace Puckslide.Networking
         private void UnregisterServerHandlers()
         {
             NetworkServer.UnregisterHandler<MirrorLobbySnapshotMessage>();
+            NetworkServer.UnregisterHandler<MirrorGameStartMessage>();
             NetworkServer.UnregisterHandler<MirrorPuckSnapshotMessage>();
             NetworkServer.UnregisterHandler<MirrorPuckSpawnMessage>();
             NetworkServer.UnregisterHandler<MirrorPuckDespawnMessage>();
@@ -108,6 +112,7 @@ namespace Puckslide.Networking
         private void SubscribeToNetworkEvents()
         {
             NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshotBroadcasted);
+            NetworkEvents.OnGameStart.AddListener(OnLocalGameStart);
             NetworkEvents.OnPuckSnapshot.AddListener(OnPuckSnapshotBroadcasted);
             NetworkEvents.OnNetworkPuckSpawned.AddListener(OnPuckSpawnBroadcasted);
             NetworkEvents.OnNetworkPuckDespawned.AddListener(OnPuckDespawnBroadcasted);
@@ -119,6 +124,7 @@ namespace Puckslide.Networking
         private void UnsubscribeFromNetworkEvents()
         {
             NetworkEvents.OnLobbySnapshot.RemoveListener(OnLobbySnapshotBroadcasted);
+            NetworkEvents.OnGameStart.RemoveListener(OnLocalGameStart);
             NetworkEvents.OnPuckSnapshot.RemoveListener(OnPuckSnapshotBroadcasted);
             NetworkEvents.OnNetworkPuckSpawned.RemoveListener(OnPuckSpawnBroadcasted);
             NetworkEvents.OnNetworkPuckDespawned.RemoveListener(OnPuckDespawnBroadcasted);
@@ -197,6 +203,26 @@ namespace Puckslide.Networking
             NetworkServer.SendToAll(new MirrorTurnDeterminismMessage { Turn = turn });
         }
 
+        private void OnLocalGameStart(GameStartMessage message)
+        {
+            if (!IsHost)
+            {
+                return;
+            }
+
+            if (!NetworkServer.active)
+            {
+                return;
+            }
+
+            MirrorGameStartMessage mirrorMsg = new MirrorGameStartMessage
+            {
+                Message = message
+            };
+
+            NetworkServer.SendToAll(mirrorMsg);
+        }
+
         private void OnPlayerCommandSubmitted(PlayerCommandMessage command)
         {
             if (command == null || IsHost)
@@ -210,6 +236,22 @@ namespace Puckslide.Networking
         private void OnMirrorLobbySnapshotReceived(NetworkConnection conn, MirrorLobbySnapshotMessage msg)
         {
             LobbyState.ApplySnapshot(msg.Snapshot);
+        }
+
+        private void OnMirrorGameStartReceived(NetworkConnection conn, MirrorGameStartMessage msg)
+        {
+            GameStartMessage message = msg.Message;
+
+            NetworkSessionManager manager = NetworkSessionManager.Instance;
+            if (manager != null && !string.IsNullOrEmpty(manager.LobbyId))
+            {
+                if (message.LobbyId != manager.LobbyId)
+                {
+                    return;
+                }
+            }
+
+            NetworkEvents.OnGameStart.Invoke(message);
         }
 
         private void OnMirrorPuckSnapshotReceived(NetworkConnection conn, MirrorPuckSnapshotMessage msg)

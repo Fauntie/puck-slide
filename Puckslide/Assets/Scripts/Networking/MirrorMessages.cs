@@ -9,6 +9,11 @@ namespace Puckslide.Networking
         public NetworkLobbySnapshot Snapshot;
     }
 
+    public struct MirrorGameStartMessage : NetworkMessage
+    {
+        public GameStartMessage Message;
+    }
+
     public struct MirrorPuckSnapshotMessage : NetworkMessage
     {
         public PuckStateSnapshotMessage Snapshot;

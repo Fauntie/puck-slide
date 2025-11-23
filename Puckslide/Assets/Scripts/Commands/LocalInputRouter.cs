@@ -16,6 +16,7 @@ public class LocalInputRouter : MonoBehaviour
     private PlayerCommandTarget m_ActiveTarget = PlayerCommandTarget.Board;
     private int m_ActiveInstanceId = -1;
     private bool m_InputLocked;
+    private bool m_IsWhiteTurn = true;
 
     private void Awake()
     {
@@ -205,11 +206,13 @@ public class LocalInputRouter : MonoBehaviour
 
     private void OnTurnChanged(TurnChangeMessage message)
     {
-        m_InputLocked = message.IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
+        m_IsWhiteTurn = message.IsWhiteTurn;
+        m_InputLocked = m_IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
     }
 
     private void OnLobbySnapshot(NetworkLobbySnapshot _)
     {
-        m_InputLocked = PuckController.IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
+        m_IsWhiteTurn = PuckController.IsWhiteTurn;
+        m_InputLocked = m_IsWhiteTurn != LobbyState.LocalIsWhitePlayer;
     }
 }
