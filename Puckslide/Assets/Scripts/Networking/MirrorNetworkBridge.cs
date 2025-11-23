@@ -1,0 +1,218 @@
+#if MIRROR
+using Mirror;
+using UnityEngine;
+
+namespace Puckslide.Networking
+{
+    [DisallowMultipleComponent]
+    [AddComponentMenu("Networking/Mirror Network Bridge")]
+    public class MirrorNetworkBridge : MonoBehaviour
+    {
+        public static MirrorNetworkBridge Instance { get; private set; }
+
+        private NetworkSessionManager Session => NetworkSessionManager.Instance;
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(this);
+                return;
+            }
+
+            Instance = this;
+
+            RegisterClientHandlers();
+            RegisterServerHandlers();
+        }
+
+        private void OnEnable()
+        {
+            SubscribeToNetworkEvents();
+        }
+
+        private void OnDisable()
+        {
+            UnsubscribeFromNetworkEvents();
+            UnregisterClientHandlers();
+            UnregisterServerHandlers();
+
+            if (Instance == this)
+            {
+                Instance = null;
+            }
+        }
+
+        private bool IsHost => Session != null && Session.IsHost;
+
+        private void RegisterClientHandlers()
+        {
+            NetworkClient.RegisterHandler<MirrorLobbySnapshotMessage>(OnMirrorLobbySnapshotReceived);
+            NetworkClient.RegisterHandler<MirrorPuckSnapshotMessage>(OnMirrorPuckSnapshotReceived);
+            NetworkClient.RegisterHandler<MirrorPuckSpawnMessage>(OnMirrorPuckSpawnReceived);
+            NetworkClient.RegisterHandler<MirrorPuckDespawnMessage>(OnMirrorPuckDespawnReceived);
+            NetworkClient.RegisterHandler<MirrorTurnChangeMessage>(OnMirrorTurnChangeReceived);
+            NetworkClient.RegisterHandler<MirrorTurnDeterminismMessage>(OnMirrorTurnDeterminismReceived);
+        }
+
+        private void UnregisterClientHandlers()
+        {
+            NetworkClient.UnregisterHandler<MirrorLobbySnapshotMessage>();
+            NetworkClient.UnregisterHandler<MirrorPuckSnapshotMessage>();
+            NetworkClient.UnregisterHandler<MirrorPuckSpawnMessage>();
+            NetworkClient.UnregisterHandler<MirrorPuckDespawnMessage>();
+            NetworkClient.UnregisterHandler<MirrorTurnChangeMessage>();
+            NetworkClient.UnregisterHandler<MirrorTurnDeterminismMessage>();
+        }
+
+        private void RegisterServerHandlers()
+        {
+            NetworkServer.RegisterHandler<MirrorLobbySnapshotMessage>(OnMirrorLobbySnapshotReceived);
+            NetworkServer.RegisterHandler<MirrorPuckSnapshotMessage>(OnMirrorPuckSnapshotReceived);
+            NetworkServer.RegisterHandler<MirrorPuckSpawnMessage>(OnMirrorPuckSpawnReceived);
+            NetworkServer.RegisterHandler<MirrorPuckDespawnMessage>(OnMirrorPuckDespawnReceived);
+            NetworkServer.RegisterHandler<MirrorTurnChangeMessage>(OnMirrorTurnChangeReceived);
+            NetworkServer.RegisterHandler<MirrorTurnDeterminismMessage>(OnMirrorTurnDeterminismReceived);
+            NetworkServer.RegisterHandler<MirrorPlayerCommandMessage>(OnMirrorPlayerCommandReceived);
+        }
+
+        private void UnregisterServerHandlers()
+        {
+            NetworkServer.UnregisterHandler<MirrorLobbySnapshotMessage>();
+            NetworkServer.UnregisterHandler<MirrorPuckSnapshotMessage>();
+            NetworkServer.UnregisterHandler<MirrorPuckSpawnMessage>();
+            NetworkServer.UnregisterHandler<MirrorPuckDespawnMessage>();
+            NetworkServer.UnregisterHandler<MirrorTurnChangeMessage>();
+            NetworkServer.UnregisterHandler<MirrorTurnDeterminismMessage>();
+            NetworkServer.UnregisterHandler<MirrorPlayerCommandMessage>();
+        }
+
+        private void SubscribeToNetworkEvents()
+        {
+            NetworkEvents.OnLobbySnapshot.AddListener(OnLobbySnapshotBroadcasted);
+            NetworkEvents.OnPuckSnapshot.AddListener(OnPuckSnapshotBroadcasted);
+            NetworkEvents.OnNetworkPuckSpawned.AddListener(OnPuckSpawnBroadcasted);
+            NetworkEvents.OnNetworkPuckDespawned.AddListener(OnPuckDespawnBroadcasted);
+            NetworkEvents.OnTurnChanged.AddListener(OnTurnChangedBroadcasted);
+            NetworkEvents.OnTurnDeterminism.AddListener(OnTurnDeterminismBroadcasted);
+            NetworkEvents.OnPlayerCommandSubmitted.AddListener(OnPlayerCommandSubmitted);
+        }
+
+        private void UnsubscribeFromNetworkEvents()
+        {
+            NetworkEvents.OnLobbySnapshot.RemoveListener(OnLobbySnapshotBroadcasted);
+            NetworkEvents.OnPuckSnapshot.RemoveListener(OnPuckSnapshotBroadcasted);
+            NetworkEvents.OnNetworkPuckSpawned.RemoveListener(OnPuckSpawnBroadcasted);
+            NetworkEvents.OnNetworkPuckDespawned.RemoveListener(OnPuckDespawnBroadcasted);
+            NetworkEvents.OnTurnChanged.RemoveListener(OnTurnChangedBroadcasted);
+            NetworkEvents.OnTurnDeterminism.RemoveListener(OnTurnDeterminismBroadcasted);
+            NetworkEvents.OnPlayerCommandSubmitted.RemoveListener(OnPlayerCommandSubmitted);
+        }
+
+        private void OnLobbySnapshotBroadcasted(NetworkLobbySnapshot snapshot)
+        {
+            if (!IsHost || snapshot == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorLobbySnapshotMessage { Snapshot = snapshot });
+        }
+
+        private void OnPuckSnapshotBroadcasted(PuckStateSnapshotMessage snapshot)
+        {
+            if (!IsHost || snapshot == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorPuckSnapshotMessage { Snapshot = snapshot });
+        }
+
+        private void OnPuckSpawnBroadcasted(PuckSpawnMessage puck)
+        {
+            if (!IsHost || puck == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorPuckSpawnMessage { Puck = puck });
+        }
+
+        private void OnPuckDespawnBroadcasted(PuckDespawnMessage puck)
+        {
+            if (!IsHost || puck == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorPuckDespawnMessage { Puck = puck });
+        }
+
+        private void OnTurnChangedBroadcasted(TurnChangeMessage turn)
+        {
+            if (!IsHost || turn == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorTurnChangeMessage { Turn = turn });
+        }
+
+        private void OnTurnDeterminismBroadcasted(TurnDeterminismMessage turn)
+        {
+            if (!IsHost || turn == null)
+            {
+                return;
+            }
+
+            NetworkServer.SendToAll(new MirrorTurnDeterminismMessage { Turn = turn });
+        }
+
+        private void OnPlayerCommandSubmitted(PlayerCommandMessage command)
+        {
+            if (command == null || IsHost)
+            {
+                return;
+            }
+
+            NetworkClient.Send(new MirrorPlayerCommandMessage { Command = command });
+        }
+
+        private void OnMirrorLobbySnapshotReceived(NetworkConnection conn, MirrorLobbySnapshotMessage msg)
+        {
+            NetworkEvents.OnLobbySnapshot.Invoke(msg.Snapshot);
+        }
+
+        private void OnMirrorPuckSnapshotReceived(NetworkConnection conn, MirrorPuckSnapshotMessage msg)
+        {
+            NetworkEvents.OnPuckSnapshot.Invoke(msg.Snapshot);
+        }
+
+        private void OnMirrorPuckSpawnReceived(NetworkConnection conn, MirrorPuckSpawnMessage msg)
+        {
+            NetworkEvents.OnNetworkPuckSpawned.Invoke(msg.Puck);
+        }
+
+        private void OnMirrorPuckDespawnReceived(NetworkConnection conn, MirrorPuckDespawnMessage msg)
+        {
+            NetworkEvents.OnNetworkPuckDespawned.Invoke(msg.Puck);
+        }
+
+        private void OnMirrorTurnChangeReceived(NetworkConnection conn, MirrorTurnChangeMessage msg)
+        {
+            NetworkEvents.OnTurnChanged.Invoke(msg.Turn);
+        }
+
+        private void OnMirrorTurnDeterminismReceived(NetworkConnection conn, MirrorTurnDeterminismMessage msg)
+        {
+            NetworkEvents.OnTurnDeterminism.Invoke(msg.Turn);
+        }
+
+        private void OnMirrorPlayerCommandReceived(NetworkConnectionToClient conn, MirrorPlayerCommandMessage msg)
+        {
+            NetworkEvents.OnPlayerCommandSubmitted.Invoke(msg.Command);
+        }
+    }
+}
+#endif
