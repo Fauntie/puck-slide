@@ -134,12 +134,22 @@ namespace Puckslide.Networking
                 return;
             }
 
+            if (!NetworkServer.active)
+            {
+                return;
+            }
+
             NetworkServer.SendToAll(new MirrorLobbySnapshotMessage { Snapshot = snapshot });
         }
 
         private void OnPuckSnapshotBroadcasted(PuckStateSnapshotMessage snapshot)
         {
             if (!IsHost || snapshot == null)
+            {
+                return;
+            }
+
+            if (!NetworkServer.active)
             {
                 return;
             }
@@ -199,7 +209,7 @@ namespace Puckslide.Networking
 
         private void OnMirrorLobbySnapshotReceived(NetworkConnection conn, MirrorLobbySnapshotMessage msg)
         {
-            NetworkEvents.OnLobbySnapshot.Invoke(msg.Snapshot);
+            LobbyState.ApplySnapshot(msg.Snapshot);
         }
 
         private void OnMirrorPuckSnapshotReceived(NetworkConnection conn, MirrorPuckSnapshotMessage msg)
