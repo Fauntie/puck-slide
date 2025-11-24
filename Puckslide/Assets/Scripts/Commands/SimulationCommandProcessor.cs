@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Puckslide.Networking;
 using UnityEngine;
 
 public class SimulationCommandProcessor : MonoBehaviour
@@ -31,6 +32,13 @@ public class SimulationCommandProcessor : MonoBehaviour
     {
         if (m_Dispatcher == null)
         {
+            return;
+        }
+
+        NetworkSessionManager manager = NetworkSessionManager.Instance;
+        if (manager != null && !manager.OfflineMode && !manager.IsHost)
+        {
+            // Non-host clients rely on snapshots from the host instead of running the simulation loop locally.
             return;
         }
 

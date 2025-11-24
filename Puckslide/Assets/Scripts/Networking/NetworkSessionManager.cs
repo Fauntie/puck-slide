@@ -407,6 +407,7 @@ namespace Puckslide.Networking
             NetworkEvents.OnShotLaunched.Invoke(message);
         }
 
+        // Submit a player command according to session authority and transport availability.
         public void SubmitPlayerCommand(PlayerCommand command)
         {
             if (m_OfflineMode)
@@ -441,9 +442,8 @@ namespace Puckslide.Networking
             }
 #endif
 
-            // Fallback path (no Mirror / offline testing): behave as before,
-            // delivering the message directly into the host event handler.
-            NetworkEvents.OnPlayerCommandSubmitted.Invoke(message);
+            // No transport available: drop the command to preserve host authority.
+            Debug.LogWarning("Dropping player command — no active network connection and not in offline mode.");
         }
 
         public void ReceiveSnapshot(NetworkLobbySnapshot snapshot)
@@ -558,8 +558,9 @@ namespace Puckslide.Networking
 
         private void TryApplyCommandAsHost(PlayerCommand command)
         {
-            if (!m_IsHost && command.CommandType == PlayerCommandType.PointerUp)
+            if (!m_IsHost)
             {
+                Debug.LogWarning("Rejected command application — local peer is not the host.");
                 return;
             }
 
@@ -600,6 +601,29 @@ namespace Puckslide.Networking
             m_ConnectionTimedOut = false;
             m_LastSnapshotReceivedTime = 0d;
             Debug.Log($"[Networking] Handling disconnect ({reason}).");
+
+#if MIRROR
+            // Ensure Mirror connections are torn down when the session ends, even without a dedicated handler.
+            try
+            {
+                NetworkManager networkManager = m_NetworkManager != null ? m_NetworkManager : FindObjectOfType<NetworkManager>();
+                if (networkManager != null && networkManager.isNetworkActive)
+                {
+                    if (m_IsHost)
+                    {
+                        networkManager.StopHost();
+                    }
+                    else
+                    {
+                        networkManager.StopClient();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[Networking] Failed to shut down Mirror transport: {ex.Message}");
+            }
+#endif
         }
 
         private void OnAnyPuckSnapshot(PuckStateSnapshotMessage snapshot)
