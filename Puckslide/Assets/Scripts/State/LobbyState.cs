@@ -65,6 +65,12 @@ public static class LobbyState
             return;
         }
 
+        string currentLobbyId = NetworkSessionManager.Instance?.LobbyId;
+        if (!string.IsNullOrEmpty(currentLobbyId) && snapshot.LobbyId != currentLobbyId)
+        {
+            return;
+        }
+
         if (snapshot.Snapshot == null)
         {
             snapshot.Snapshot = new LobbySnapshot

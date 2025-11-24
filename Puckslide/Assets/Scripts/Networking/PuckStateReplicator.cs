@@ -22,12 +22,14 @@ namespace Puckslide.Networking
 
             NetworkEvents.OnPuckSnapshot.AddListener(OnSnapshot);
             NetworkEvents.OnNetworkPuckSpawned.AddListener(OnSpawned);
+            NetworkEvents.OnNetworkPuckDespawned.AddListener(OnDespawned);
         }
 
         private void OnDisable()
         {
             NetworkEvents.OnPuckSnapshot.RemoveListener(OnSnapshot);
             NetworkEvents.OnNetworkPuckSpawned.RemoveListener(OnSpawned);
+            NetworkEvents.OnNetworkPuckDespawned.RemoveListener(OnDespawned);
             m_TargetStates.Clear();
         }
 
@@ -72,6 +74,13 @@ namespace Puckslide.Networking
                 return;
             }
 
+            string lobbyId = manager != null ? manager.LobbyId : null;
+            if (!string.IsNullOrEmpty(lobbyId) && message.LobbyId != lobbyId)
+            {
+                // Ignore snapshots from other lobbies or stale sessions.
+                return;
+            }
+
             m_TargetStates.Clear();
             foreach (PuckState state in message.Pucks)
             {
@@ -92,6 +101,13 @@ namespace Puckslide.Networking
                 return;
             }
 
+            string lobbyId = manager != null ? manager.LobbyId : null;
+            if (!string.IsNullOrEmpty(lobbyId) && message.LobbyId != lobbyId)
+            {
+                // Ignore snapshots from other lobbies or stale sessions.
+                return;
+            }
+
             if (PuckControllerRouteHub.TryGet(message.NetworkInstanceId, out PuckController controller))
             {
                 Rigidbody2D body = controller.Rigidbody;
@@ -102,6 +118,29 @@ namespace Puckslide.Networking
                     controller.transform.position = message.Position;
                 }
             }
+        }
+
+        private void OnDespawned(PuckDespawnMessage message)
+        {
+            NetworkSessionManager manager = NetworkSessionManager.Instance;
+            if (manager != null && manager.IsHost)
+            {
+                return;
+            }
+
+            if (message == null)
+            {
+                return;
+            }
+
+            string lobbyId = manager != null ? manager.LobbyId : null;
+            if (!string.IsNullOrEmpty(lobbyId) && message.LobbyId != lobbyId)
+            {
+                // Ignore snapshots from other lobbies or stale sessions.
+                return;
+            }
+
+            m_TargetStates.Remove(message.NetworkInstanceId);
         }
     }
 }
