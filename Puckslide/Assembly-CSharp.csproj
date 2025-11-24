@@ -55,25 +55,48 @@
     <UnityVersion>2022.3.52f1</UnityVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Assets\Scripts\Networking\MirrorNetworkBridge.cs" />
     <Compile Include="Assets\Scripts\Phase2Manager.cs" />
+    <Compile Include="Assets\Scripts\Networking\NetworkMessages.cs" />
+    <Compile Include="Assets\Scripts\UI\MainMenuController.cs" />
+    <Compile Include="Assets\Scripts\Commands\SimulationCommandProcessor.cs" />
     <Compile Include="Assets\Scripts\PuckController.cs" />
+    <Compile Include="Assets\Scripts\Config\BuildConfig.cs" />
     <Compile Include="Assets\Scripts\Chess\CapturedPieceUi.cs" />
+    <Compile Include="Assets\Scripts\Commands\LocalInputRouter.cs" />
     <Compile Include="Assets\Scripts\UI\Phase1TurnIndicator.cs" />
+    <Compile Include="Assets\Scripts\Core\GameBootstrapper.cs" />
     <Compile Include="Assets\Scripts\PuckFriction.cs" />
     <Compile Include="Assets\Scripts\Chess\Tile.cs" />
     <Compile Include="Assets\Scripts\UI\PieceSetupCounter.cs" />
+    <Compile Include="Assets\Scripts\Networking\NetworkEvents.cs" />
     <Compile Include="Assets\Scripts\GameSetupManager.cs" />
+    <Compile Include="Assets\Scripts\State\GameStateSnapshot.cs" />
+    <Compile Include="Assets\Scripts\UI\NetworkErrorHUD.cs" />
     <Compile Include="Assets\Scripts\UI\StickySetup.cs" />
     <Compile Include="Assets\Scripts\Chess\Piece.cs" />
     <Compile Include="Assets\Scripts\GridManager.cs" />
     <Compile Include="Assets\Scripts\BoardFlipper.cs" />
+    <Compile Include="Assets\Scripts\UI\NetworkStatusHUD.cs" />
+    <Compile Include="Assets\Scripts\Commands\PlayerCommand.cs" />
+    <Compile Include="Assets\Scripts\Debug\NetworkDebugOverlay.cs" />
     <Compile Include="Assets\Scripts\Chess\BoardController.cs" />
     <Compile Include="Assets\Scripts\GridGenerator.cs" />
+    <Compile Include="Assets\Scripts\Networking\PuckStateReplicator.cs" />
+    <Compile Include="Assets\Scripts\Networking\LobbyUIController.cs" />
     <Compile Include="Assets\Scripts\UI\Phase1PieceButton.cs" />
     <Compile Include="Assets\Scripts\UI\TurnIndicator.cs" />
-    <Compile Include="Assets\Scripts\Util\EventsManager.cs" />
+    <Compile Include="Assets\Scripts\Commands\PuckControllerRouteHub.cs" />
+    <Compile Include="Assets\Scripts\State\GameStateSerializer.cs" />
+    <Compile Include="Assets\Scripts\State\LobbyState.cs" />
+    <Compile Include="Assets\Scripts\Networking\MirrorMessages.cs" />
     <Compile Include="Assets\Scripts\UI\TurnBannerHUD.cs" />
     <Compile Include="Assets\Scripts\OneWayWall.cs" />
+    <Compile Include="Assets\Scripts\Commands\PlayerCommandDispatcher.cs" />
+    <Compile Include="Assets\Scripts\Networking\NetworkDisconnectHandler.cs" />
+    <Compile Include="Assets\Scripts\Networking\SteamworksBootstrap.cs" />
+    <Compile Include="Assets\Scripts\Networking\NetworkSessionManager.cs" />
+    <Compile Include="Assets\Scripts\Networking\PuckslideNetworkManager.cs" />
     <Compile Include="Assets\Scripts\Chess\PromotionPanel.cs" />
   </ItemGroup>
   <ItemGroup>
